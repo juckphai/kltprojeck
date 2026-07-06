@@ -1,6 +1,6 @@
 // ============================================================
 //  main.js - ตัวจัดการหลัก (Module Loader)
-//  Version: 2.5 (พร้อม Weather Settings + Storage Monitor + Clear Local Data + Toggle Chart + Toggle Analytics)
+//  Version: 2.6 (Cleaned - Removed Duplicate Functions)
 // ============================================================
 
 console.log("📦 main.js โหลดเรียบร้อย");
@@ -25,7 +25,7 @@ function waitForModules(callback, maxAttempts = 30) {
         'initCoreModule',
         'initSensorModule',
         'initTelegramModule',
-        'initStorageMonitor'  // ✅ เพิ่ม Storage Monitor
+        'initStorageMonitor'
     ];
     
     function check() {
@@ -96,7 +96,6 @@ function startApp() {
         }
         console.log("✅ ระบบเริ่มต้นสมบูรณ์!");
         
-        // ✅ เริ่ม Storage Monitor หลังจากระบบหลักทำงาน
         setTimeout(() => {
             if (typeof initStorageMonitor === 'function') {
                 console.log("💾 เรียก initStorageMonitor()");
@@ -139,7 +138,6 @@ window.toggleSummaryTable = function() {
 //  4. 🗑️ CLEAR LOCAL DATA - ลบข้อมูลในเครื่อง (LocalStorage, SessionStorage, Cache)
 // ============================================================
 window.confirmClearLocalData = function() {
-    // ✅ รหัสยืนยันเพื่อป้องกันการลบโดยไม่ตั้งใจ
     const CONFIRM_CODE = "55555";
     
     const userInput = prompt(
@@ -163,14 +161,12 @@ window.confirmClearLocalData = function() {
         return;
     }
     
-    // ✅ ยืนยันอีกครั้ง
     if (!confirm("⚠️ ยืนยันการลบข้อมูลในเครื่องทั้งหมด?\n\n" +
                  "💡 ข้อมูล Firebase ยังคงอยู่ แต่คุณจะต้องเข้าสู่ระบบใหม่")) {
         return;
     }
     
     try {
-        // ✅ แสดงข้อความกำลังดำเนินการ
         const loadingDiv = document.createElement('div');
         loadingDiv.id = 'clearLocalDataLoading';
         loadingDiv.style.cssText = `
@@ -205,29 +201,22 @@ window.confirmClearLocalData = function() {
         `;
         document.body.appendChild(loadingDiv);
         
-        // ✅ หน่วงเวลาเล็กน้อยให้เห็น animation
         setTimeout(() => {
-            // ✅ 1. ล้าง LocalStorage
-            const localStorageKeys = Object.keys(localStorage);
             let localStorageCount = 0;
-            for (const key of localStorageKeys) {
-                // ✅ เก็บ key ที่สำคัญไว้ (ถ้าต้องการ)
-                if (key === 'pwa_installed') continue; // ข้าม PWA status
+            for (const key of Object.keys(localStorage)) {
+                if (key === 'pwa_installed') continue;
                 localStorage.removeItem(key);
                 localStorageCount++;
             }
             console.log(`✅ ลบ LocalStorage ${localStorageCount} รายการ`);
             
-            // ✅ 2. ล้าง SessionStorage
-            const sessionStorageKeys = Object.keys(sessionStorage);
             let sessionStorageCount = 0;
-            for (const key of sessionStorageKeys) {
+            for (const key of Object.keys(sessionStorage)) {
                 sessionStorage.removeItem(key);
                 sessionStorageCount++;
             }
             console.log(`✅ ลบ SessionStorage ${sessionStorageCount} รายการ`);
             
-            // ✅ 3. ล้าง Cache (ถ้ามี)
             if ('caches' in window) {
                 try {
                     caches.keys().then(cacheNames => {
@@ -241,10 +230,8 @@ window.confirmClearLocalData = function() {
                 }
             }
             
-            // ✅ 4. ล้าง IndexedDB (ถ้ามี)
             if (window.indexedDB) {
                 try {
-                    // ✅ ใช้วิธีที่ปลอดภัยกว่า
                     const databases = ['firebaseLocalStorageDb', 'firebaseStorage', 'KLTDB'];
                     databases.forEach(dbName => {
                         try {
@@ -259,9 +246,7 @@ window.confirmClearLocalData = function() {
                 }
             }
             
-            // ✅ 5. ลบข้อมูลที่เกี่ยวข้องกับ Firebase (ถ้ามี)
             try {
-                // ล้าง Firebase Local Cache
                 if (window.firebase && window.firebase.auth) {
                     try {
                         window.firebase.auth().signOut();
@@ -269,7 +254,6 @@ window.confirmClearLocalData = function() {
                     } catch(e) {}
                 }
                 
-                // ล้าง Service Worker Registration (ถ้ามี)
                 if ('serviceWorker' in navigator) {
                     navigator.serviceWorker.getRegistrations().then(registrations => {
                         registrations.forEach(registration => {
@@ -282,7 +266,6 @@ window.confirmClearLocalData = function() {
                 console.warn("⚠️ ไม่สามารถล้าง Firebase/SW ได้:", e);
             }
             
-            // ✅ 6. ลบ Cookies (ถ้ามี)
             try {
                 document.cookie.split(";").forEach(c => {
                     document.cookie = c.replace(/^ +/, "")
@@ -293,12 +276,10 @@ window.confirmClearLocalData = function() {
                 console.warn("⚠️ ไม่สามารถลบ Cookies ได้:", e);
             }
             
-            // ✅ 7. ลบข้อความโหลด
             if (loadingDiv.parentNode) {
                 loadingDiv.remove();
             }
             
-            // ✅ 8. แสดงผลสำเร็จ
             alert(`✅ ลบข้อมูลในเครื่องสำเร็จ!\n\n` +
                   `📊 สรุป:\n` +
                   `   • LocalStorage: ${localStorageCount} รายการ\n` +
@@ -307,7 +288,6 @@ window.confirmClearLocalData = function() {
                   `   • Cookies: เรียบร้อย\n\n` +
                   `🔄 ระบบจะทำการรีโหลดหน้าเว็บเพื่อเริ่มต้นใหม่`);
             
-            // ✅ 9. รีโหลดหน้าเว็บ
             setTimeout(() => {
                 window.location.reload();
             }, 2000);
@@ -323,7 +303,7 @@ window.confirmClearLocalData = function() {
 };
 
 // ============================================================
-//  5. 🗑️ CLEAR LOCAL DATA (แบบง่าย - ไม่ต้องรหัสยืนยัน)
+//  5. 🗑️ CLEAR LOCAL DATA (แบบง่าย)
 // ============================================================
 window.clearLocalDataSimple = function() {
     if (!confirm("⚠️ ยืนยันลบข้อมูลในเครื่องทั้งหมด?\n\n" +
@@ -332,15 +312,12 @@ window.clearLocalDataSimple = function() {
     }
     
     try {
-        // ✅ ล้าง LocalStorage
         localStorage.clear();
         console.log("✅ ล้าง LocalStorage เรียบร้อย");
         
-        // ✅ ล้าง SessionStorage
         sessionStorage.clear();
         console.log("✅ ล้าง SessionStorage เรียบร้อย");
         
-        // ✅ ล้าง Cache
         if ('caches' in window) {
             caches.keys().then(cacheNames => {
                 cacheNames.forEach(cacheName => {
@@ -607,15 +584,12 @@ window.toggleChart = function() {
     
     if (!container || !btn) return;
     
-    // ตรวจสอบสถานะปัจจุบัน
     const isHidden = container.classList.contains('hidden-chart');
     
     if (isHidden) {
-        // แสดงกราฟ
         container.classList.remove('hidden-chart');
         btn.textContent = '🔼 ซ่อนกราฟ';
         btn.classList.remove('shrink');
-        // ต้อง resize chart หลังจากแสดง
         setTimeout(() => {
             if (chart && typeof chart.resize === 'function') {
                 chart.resize();
@@ -623,7 +597,6 @@ window.toggleChart = function() {
         }, 300);
         localStorage.setItem('chartVisible', 'true');
     } else {
-        // ซ่อนกราฟ
         container.classList.add('hidden-chart');
         btn.textContent = '🔽 แสดงกราฟ';
         btn.classList.add('shrink');
@@ -640,17 +613,14 @@ window.toggleAnalytics = function() {
     
     if (!section || !btn) return;
     
-    // ตรวจสอบสถานะปัจจุบัน
     const isHidden = section.classList.contains('hidden-analytics');
     
     if (isHidden) {
-        // แสดง Analytics
         section.classList.remove('hidden-analytics');
         btn.textContent = '🔼 ซ่อน Analytics';
         btn.classList.remove('show');
         localStorage.setItem('analyticsVisible', 'true');
     } else {
-        // ซ่อน Analytics
         section.classList.add('hidden-analytics');
         btn.textContent = '🔽 แสดง Analytics';
         btn.classList.add('show');
@@ -662,10 +632,8 @@ window.toggleAnalytics = function() {
 //  10. โหลดสถานะการแสดงกราฟจาก LocalStorage
 // ============================================================
 window.loadChartVisibility = function() {
-    // ✅ เปลี่ยนเป็นซ่อนกราฟเป็นค่าเริ่มต้น
     const isVisible = localStorage.getItem('chartVisible');
     
-    // ถ้ายังไม่เคยตั้งค่า หรือตั้งค่าเป็น 'false' ให้ซ่อน
     if (isVisible === null || isVisible === 'false') {
         const container = document.getElementById('chartContainer');
         const btn = document.getElementById('chartToggleBtn');
@@ -690,10 +658,8 @@ window.loadChartVisibility = function() {
 //  10.1 โหลดสถานะการแสดง Analytics จาก LocalStorage
 // ============================================================
 window.loadAnalyticsVisibility = function() {
-    // ✅ ซ่อน Analytics เป็นค่าเริ่มต้น
     const isVisible = localStorage.getItem('analyticsVisible');
     
-    // ถ้ายังไม่เคยตั้งค่า หรือตั้งค่าเป็น 'false' ให้ซ่อน
     if (isVisible === null || isVisible === 'false') {
         const section = document.getElementById('analyticsSection');
         const btn = document.getElementById('analyticsToggleBtn');
@@ -715,32 +681,32 @@ window.loadAnalyticsVisibility = function() {
 };
 
 // ============================================================
-//  11. WEATHER SETTINGS - รองรับทั้ง board และ global
+//  11. WEATHER SETTINGS - เฉพาะ Global (Per-Board ใช้ใน sensors.js)
 // ============================================================
 
 /**
  * บันทึกการตั้งค่าสภาพอากาศ (Global - ใช้ใน Settings Modal)
+ * ⚠️ ฟังก์ชันนี้ใช้สำหรับ Global Weather เท่านั้น
+ * สำหรับ Per-Board Weather ใช้ฟังก์ชันใน sensors.js
  */
-function saveWeatherPref() {
+window.saveWeatherPref = function() {
     const fields = document.querySelectorAll('.weather-field:checked');
     const selected = Array.from(fields).map(cb => cb.value);
     
-    // บันทึกลง localStorage
     localStorage.setItem('weatherFields', JSON.stringify(selected));
     
-    // บันทึกสถานะ attach
     const attach = document.getElementById('attachWeatherToReport');
     if (attach) {
         localStorage.setItem('attachWeatherToReport', attach.checked ? 'true' : 'false');
     }
     
     showToast('✅ บันทึกการตั้งค่าสภาพอากาศเรียบร้อยแล้ว');
-}
+};
 
 /**
  * โหลดการตั้งค่าสภาพอากาศ (Global)
  */
-function loadWeatherPref() {
+window.loadWeatherPref = function() {
     const saved = localStorage.getItem('weatherFields');
     if (saved) {
         try {
@@ -758,56 +724,14 @@ function loadWeatherPref() {
         const el = document.getElementById('attachWeatherToReport');
         if (el) el.checked = attach === 'true';
     }
-}
-
-/**
- * บันทึกการตั้งค่าสภาพอากาศสำหรับบอร์ด (Board-specific)
- */
-function saveBoardWeatherSettings() {
-    const fields = document.querySelectorAll('.board-weather-field:checked');
-    const selected = Array.from(fields).map(cb => cb.value);
-    
-    // ใช้ key เฉพาะบอร์ด
-    localStorage.setItem('boardWeatherFields', JSON.stringify(selected));
-    
-    const attach = document.getElementById('boardAttachWeatherToReport');
-    if (attach) {
-        localStorage.setItem('boardAttachWeatherToReport', attach.checked ? 'true' : 'false');
-    }
-    
-    showToast('✅ บันทึกการตั้งค่าสภาพอากาศสำหรับบอร์ดเรียบร้อยแล้ว');
-    closeBoardWeatherSettings();
-}
-
-/**
- * โหลดการตั้งค่าสภาพอากาศสำหรับบอร์ด
- */
-function loadBoardWeatherPref() {
-    const saved = localStorage.getItem('boardWeatherFields');
-    if (saved) {
-        try {
-            const fields = JSON.parse(saved);
-            document.querySelectorAll('.board-weather-field').forEach(cb => {
-                cb.checked = fields.includes(cb.value);
-            });
-        } catch(e) {
-            console.warn('⚠️ โหลด boardWeatherFields ไม่สำเร็จ:', e);
-        }
-    }
-    
-    const attach = localStorage.getItem('boardAttachWeatherToReport');
-    if (attach !== null) {
-        const el = document.getElementById('boardAttachWeatherToReport');
-        if (el) el.checked = attach === 'true';
-    }
-}
+};
 
 /**
  * ฟังก์ชันดึงค่าสภาพอากาศที่เลือก (ใช้ในรายงาน)
  * @param {string} type - 'global' หรือ 'board'
  * @returns {string[]} รายการฟิลด์ที่เลือก
  */
-function getSelectedWeatherFields(type = 'global') {
+window.getSelectedWeatherFields = function(type = 'global') {
     const prefix = type === 'board' ? 'board' : '';
     const key = prefix ? 'boardWeatherFields' : 'weatherFields';
     const saved = localStorage.getItem(key);
@@ -820,28 +744,24 @@ function getSelectedWeatherFields(type = 'global') {
             return ['temp', 'humidity', 'description'];
         }
     }
-    // ค่าเริ่มต้น
     return ['temp', 'humidity', 'description'];
-}
+};
 
 /**
  * ตรวจสอบว่าแนบสภาพอากาศในรายงานหรือไม่
  * @param {string} type - 'global' หรือ 'board'
  * @returns {boolean}
  */
-function isWeatherAttachedToReport(type = 'global') {
+window.isWeatherAttachedToReport = function(type = 'global') {
     const key = type === 'board' ? 'boardAttachWeatherToReport' : 'attachWeatherToReport';
     const val = localStorage.getItem(key);
     return val === 'true';
-}
+};
 
 /**
  * ฟังก์ชันดึงข้อมูลสภาพอากาศแบบเต็ม (ใช้ในรายงาน)
- * @param {Object} weatherData - ข้อมูลสภาพอากาศจาก API
- * @param {string} type - 'global' หรือ 'board'
- * @returns {string} ข้อความสภาพอากาศที่จัดรูปแบบ
  */
-function getWeatherReportText(weatherData, type = 'global') {
+window.getWeatherReportText = function(weatherData, type = 'global') {
     if (!weatherData || typeof weatherData !== 'object') {
         return 'ไม่มีข้อมูลสภาพอากาศ';
     }
@@ -849,7 +769,6 @@ function getWeatherReportText(weatherData, type = 'global') {
     const fields = getSelectedWeatherFields(type);
     const parts = [];
     
-    // แปลงฟิลด์เป็นข้อความที่อ่านง่าย
     const fieldMap = {
         'temp': `🌡️ ${weatherData.temp ?? weatherData.temperature ?? 'N/A'}°C`,
         'humidity': `💧 ${weatherData.humidity ?? 'N/A'}%`,
@@ -868,59 +787,12 @@ function getWeatherReportText(weatherData, type = 'global') {
     });
     
     return parts.length > 0 ? parts.join(' | ') : 'ไม่มีข้อมูลสภาพอากาศ';
-}
-
-/**
- * เปิด/ปิด Modal การตั้งค่าสภาพอากาศสำหรับบอร์ด
- */
-function toggleBoardWeatherSettings() {
-    const modal = document.getElementById('boardWeatherSettingsModal');
-    if (!modal) return;
-    
-    const isOpen = modal.style.display === 'flex' || modal.style.display === 'block';
-    
-    if (isOpen) {
-        closeBoardWeatherSettings();
-    } else {
-        openBoardWeatherSettings();
-    }
-}
-
-/**
- * เปิด Modal การตั้งค่าสภาพอากาศสำหรับบอร์ด
- */
-function openBoardWeatherSettings() {
-    const modal = document.getElementById('boardWeatherSettingsModal');
-    if (!modal) {
-        console.warn('⚠️ ไม่พบ boardWeatherSettingsModal');
-        return;
-    }
-    
-    // โหลดค่าปัจจุบัน
-    loadBoardWeatherPref();
-    
-    modal.style.display = 'flex';
-    modal.style.alignItems = 'center';
-    modal.style.justifyContent = 'center';
-    document.body.style.overflow = 'hidden';
-}
-
-/**
- * ปิด Modal การตั้งค่าสภาพอากาศสำหรับบอร์ด
- */
-function closeBoardWeatherSettings() {
-    const modal = document.getElementById('boardWeatherSettingsModal');
-    if (!modal) return;
-    
-    modal.style.display = 'none';
-    document.body.style.overflow = '';
-}
+};
 
 // ============================================================
 //  12. TOAST NOTIFICATION
 // ============================================================
-function showToast(message, duration = 3000) {
-    // ลบ toast เก่าถ้ามี
+window.showToast = function(message, duration = 3000) {
     const old = document.querySelector('.custom-toast');
     if (old) old.remove();
     
@@ -952,10 +824,10 @@ function showToast(message, duration = 3000) {
         toast.style.transition = 'all 0.3s ease';
         setTimeout(() => toast.remove(), 300);
     }, duration);
-}
+};
 
 // ============================================================
-//  13. เพิ่ม CSS animation สำหรับ Toast (ถ้ายังไม่มี)
+//  13. CSS animation สำหรับ Toast
 // ============================================================
 (function injectToastStyles() {
     if (document.querySelector('#toast-style')) return;
@@ -979,60 +851,4 @@ window.startApp = startApp;
 window.loadChartVisibility = loadChartVisibility;
 window.loadAnalyticsVisibility = loadAnalyticsVisibility;
 
-// Export Weather Functions
-window.saveWeatherPref = saveWeatherPref;
-window.loadWeatherPref = loadWeatherPref;
-window.saveBoardWeatherSettings = saveBoardWeatherSettings;
-window.loadBoardWeatherPref = loadBoardWeatherPref;
-window.getSelectedWeatherFields = getSelectedWeatherFields;
-window.isWeatherAttachedToReport = isWeatherAttachedToReport;
-window.getWeatherReportText = getWeatherReportText;
-window.toggleBoardWeatherSettings = toggleBoardWeatherSettings;
-window.openBoardWeatherSettings = openBoardWeatherSettings;
-window.closeBoardWeatherSettings = closeBoardWeatherSettings;
-window.showToast = showToast;
-
-// ============================================================
-//  15. เริ่มต้นเมื่อ DOM พร้อม
-// ============================================================
-if (document.readyState === 'loading') {
-    console.log("⏳ รอ DOM โหลด...");
-    document.addEventListener('DOMContentLoaded', function() {
-        setTimeout(() => {
-            if (typeof window.addAlertManagementButtons === 'function') {
-                window.addAlertManagementButtons();
-            }
-        }, 1500);
-        startApp();
-        // ✅ โหลดสถานะการแสดงกราฟ (ซ่อนเป็นค่าเริ่มต้น)
-        setTimeout(loadChartVisibility, 800);
-        // ✅ โหลดสถานะการแสดง Analytics (ซ่อนเป็นค่าเริ่มต้น)
-        setTimeout(loadAnalyticsVisibility, 900);
-        // ✅ โหลดการตั้งค่าสภาพอากาศ
-        setTimeout(() => {
-            loadWeatherPref();
-            loadBoardWeatherPref();
-            console.log('✅ โหลดการตั้งค่าสภาพอากาศเรียบร้อย');
-        }, 1000);
-    });
-} else {
-    console.log("✅ DOM โหลดเสร็จแล้ว");
-    setTimeout(() => {
-        if (typeof window.addAlertManagementButtons === 'function') {
-            window.addAlertManagementButtons();
-        }
-    }, 1500);
-    setTimeout(startApp, 100);
-    // ✅ โหลดสถานะการแสดงกราฟ (ซ่อนเป็นค่าเริ่มต้น)
-    setTimeout(loadChartVisibility, 800);
-    // ✅ โหลดสถานะการแสดง Analytics (ซ่อนเป็นค่าเริ่มต้น)
-    setTimeout(loadAnalyticsVisibility, 900);
-    // ✅ โหลดการตั้งค่าสภาพอากาศ
-    setTimeout(() => {
-        loadWeatherPref();
-        loadBoardWeatherPref();
-        console.log('✅ โหลดการตั้งค่าสภาพอากาศเรียบร้อย');
-    }, 1000);
-}
-
-console.log("✅ main.js พร้อมทำงาน (เวอร์ชัน 2.5)");
+console.log("✅ main.js พร้อมทำงาน (เวอร์ชัน 2.6 - Cleaned)");
