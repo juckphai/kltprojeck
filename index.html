@@ -1,0 +1,1625 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#4CAF50" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <link rel="manifest" href="manifest.json" crossorigin="use-credentials" />
+    <title>กลทีป์</title>
+    <link rel="stylesheet" href="style.css" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js">
+    </script>
+
+    <!-- ============================================================
+    FIREBASE CONFIG & INIT
+    ============================================================ -->
+    <script type="module">
+        const firebaseConfig = {
+            apiKey: "AIzaSyD26CeYAI9zKKsXNTmXmYBa7waGWakFUa0",
+            authDomain: "projectklt.firebaseapp.com",
+            databaseURL: "https://projectklt-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "projectklt",
+            storageBucket: "projectklt.firebasestorage.app",
+            messagingSenderId: "416150118010",
+            appId: "1:416150118010:web:2c2a8b44c8abadfd9265c3",
+            measurementId: "G-KLTKRQSLN7"
+        };
+
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js';
+        import {
+            getDatabase, ref, push, set, onValue, serverTimestamp,
+            get, remove, update, child, query, orderByKey,
+            orderByChild, startAt, endAt, limitToLast, onDisconnect
+        } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-database.js';
+
+        try {
+            const app = initializeApp(firebaseConfig);
+            const database = getDatabase(app);
+
+            window.db = database;
+            window.ref = ref;
+            window.push = push;
+            window.set = set;
+            window.onValue = onValue;
+            window.serverTimestamp = serverTimestamp;
+            window.get = get;
+            window.remove = remove;
+            window.update = update;
+            window.child = child;
+            window.query = query;
+            window.orderByKey = orderByKey;
+            window.orderByChild = orderByChild;
+            window.startAt = startAt;
+            window.endAt = endAt;
+            window.limitToLast = limitToLast;
+            window.onDisconnect = onDisconnect;
+
+            console.log("✅ Firebase initialized successfully");
+        } catch (error) {
+            console.error("❌ Firebase initialization error:", error);
+        }
+    </script>
+
+    <!-- ============================================================
+    PWA & INSTALL GUIDE SCRIPTS
+    ============================================================ -->
+    <script>
+        // ป้องกันคลิกขวา
+        document.addEventListener('contextmenu', function(e) { e.preventDefault(); });
+
+        function navigateTo(url) { window.location.href = url; }
+
+        // ============================================================
+        // PWA INSTALL HANDLER
+        // ============================================================
+        let deferredPrompt;
+
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+
+            const installBtn = document.getElementById('installGuideBtn');
+            if (installBtn) {
+                installBtn.style.display = 'flex';
+                installBtn.innerHTML = '📥 ติดตั้งแอปพลิเคชัน';
+            }
+
+            const guideClosed = localStorage.getItem('installGuideClosed');
+            if (!guideClosed && !localStorage.getItem('pwa_installed')) {
+                setTimeout(() => {
+                    const guide = document.getElementById('install-guide');
+                    if (guide) guide.style.display = 'flex';
+                }, 3000);
+            }
+
+            const btnInstall = document.getElementById('btnInstall');
+            if (btnInstall) {
+                btnInstall.style.display = 'block';
+            }
+        });
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const installGuideBtn = document.getElementById('installGuideBtn');
+            if (installGuideBtn) {
+                installGuideBtn.addEventListener('click', async () => {
+                    if (deferredPrompt) {
+                        deferredPrompt.prompt();
+                        const { outcome } = await deferredPrompt.userChoice;
+                        console.log(`การตัดสินใจของผู้ใช้: ${outcome}`);
+                        deferredPrompt = null;
+
+                        if (outcome === 'accepted') {
+                            localStorage.setItem('pwa_installed', 'true');
+                            closeInstallGuide();
+                            const btnInstall = document.getElementById('btnInstall');
+                            if (btnInstall) btnInstall.style.display = 'none';
+                        }
+                    } else {
+                        alert('📲 กรุณาติดตั้งผ่านเมนูเบราว์เซอร์:\n\n' +
+                            '• Android: กด ⋮ → "ติดตั้งแอป"\n' +
+                            '• iPhone: กด แชร์ ⬆️ → "Add to Home Screen"\n' +
+                            '• Desktop: คลิก ⤓ ที่แถบที่อยู่');
+                    }
+                });
+            }
+
+            const btnInstall = document.getElementById('btnInstall');
+            if (btnInstall) {
+                btnInstall.addEventListener('click', async () => {
+                    if (deferredPrompt) {
+                        deferredPrompt.prompt();
+                        const { outcome } = await deferredPrompt.userChoice;
+                        console.log(`การตัดสินใจของผู้ใช้: ${outcome}`);
+                        deferredPrompt = null;
+                        btnInstall.style.display = 'none';
+
+                        if (outcome === 'accepted') {
+                            localStorage.setItem('pwa_installed', 'true');
+                            closeInstallGuide();
+                        }
+                    }
+                });
+            }
+        });
+
+        window.addEventListener('appinstalled', (e) => {
+            console.log('✅ PWA: ติดตั้งสำเร็จแล้ว');
+            localStorage.setItem('pwa_installed', 'true');
+            const btnInstall = document.getElementById('btnInstall');
+            if (btnInstall) btnInstall.style.display = 'none';
+            closeInstallGuide();
+            setTimeout(() => {
+                alert('✅ ติดตั้งแอปพลิเคชันสำเร็จ!\n\n🎉 คุณสามารถเปิดใช้งานได้จากหน้าจอหลักของอุปกรณ์');
+            }, 500);
+        });
+
+        // ============================================================
+        // PWA INSTALL GUIDE FUNCTIONS
+        // ============================================================
+        function closeInstallGuide() {
+            const guide = document.getElementById('install-guide');
+            if (guide) {
+                guide.style.display = 'none';
+                localStorage.setItem('installGuideClosed', 'true');
+            }
+        }
+
+        function showInstallGuide() {
+            if (localStorage.getItem('pwa_installed') === 'true') {
+                return;
+            }
+            const guide = document.getElementById('install-guide');
+            if (guide) {
+                guide.style.display = 'flex';
+            }
+        }
+
+        if (window.matchMedia('(display-mode: standalone)').matches ||
+            window.navigator.standalone === true ||
+            localStorage.getItem('pwa_installed') === 'true') {
+            const guide = document.getElementById('install-guide');
+            if (guide) guide.style.display = 'none';
+            const btnInstall = document.getElementById('btnInstall');
+            if (btnInstall) btnInstall.style.display = 'none';
+        }
+
+        window.addEventListener('load', function() {
+            const guideClosed = localStorage.getItem('installGuideClosed');
+            const isInstalled = localStorage.getItem('pwa_installed') === 'true';
+            const isStandalone = window.matchMedia('(display-mode: standalone)').matches ||
+                window.navigator.standalone === true;
+
+            if (!guideClosed && !isInstalled && !isStandalone) {
+                setTimeout(showInstallGuide, 3000);
+            }
+        });
+
+        // ============================================================
+        // SERVICE WORKER
+        // ============================================================
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function() {
+                navigator.serviceWorker.register('./service-worker.js')
+                    .then(function(registration) {
+                        console.log('✅ Service Worker ลงทะเบียนสำเร็จ Scope:', registration.scope);
+
+                        registration.addEventListener('updatefound', () => {
+                            const newWorker = registration.installing;
+                            console.log('📦 พบ Service Worker ใหม่กำลังติดตั้ง');
+
+                            newWorker.addEventListener('statechange', () => {
+                                if (newWorker.state === 'installed' && navigator.serviceWorker
+                                    .controller) {
+                                    console.log('🔄 พร้อมใช้งาน Service Worker ใหม่ - กรุณารีเฟรชหน้าจอ');
+                                    if (!localStorage.getItem('sw_update_notified')) {
+                                        localStorage.setItem('sw_update_notified', 'true');
+                                        setTimeout(() => {
+                                            if (confirm('📦 มีเวอร์ชันใหม่ของแอปพลิเคชัน!\n\nกด OK เพื่อรีเฟรชและใช้งานเวอร์ชันล่าสุด')) {
+                                                window.location.reload();
+                                            }
+                                        }, 1000);
+                                    }
+                                }
+                            });
+                        });
+                    })
+                    .catch(function(error) {
+                        console.log('⚠️ การลงทะเบียน Service Worker ล้มเหลว:', error);
+                    });
+
+                navigator.serviceWorker.addEventListener('controllerchange', () => {
+                    console.log('🔄 Service Worker controller เปลี่ยนแปลงแล้ว');
+                });
+            });
+        }
+
+        window.openInstallGuide = showInstallGuide;
+        window.closeInstallGuide = closeInstallGuide;
+    </script>
+</head>
+<body>
+
+    <!-- ============================================================
+    0. INSTALL GUIDE (แสดงเมื่อยังไม่ได้ติดตั้ง PWA)
+    ============================================================ -->
+    <div id="install-guide" style="
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.75);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        display: none;
+        justify-content: center;
+        align-items: center;
+        z-index: 99999;
+        padding: 20px;
+        animation: fadeIn 0.5s ease;
+    ">
+        <div style="
+            background: linear-gradient(145deg, #ffffff, #f7fbf5);
+            border-radius: 28px;
+            padding: clamp(30px, 5vw, 50px);
+            max-width: 500px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 30px 60px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            position: relative;
+        ">
+            <button onclick="closeInstallGuide()" style="
+                position: absolute;
+                top: 15px;
+                right: 20px;
+                background: #f1f5f9;
+                border: none;
+                border-radius: 50%;
+                width: 40px;
+                height: 40px;
+                font-size: 1.2rem;
+                cursor: pointer;
+                transition: 0.3s;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                color: #1a1a2e;
+            " onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'">✕</button>
+
+            <div style="text-align: center; margin-bottom: 20px;">
+                <div style="
+                    font-size: 4rem;
+                    background: linear-gradient(135deg, #e8f5e9, #c8e6c9);
+                    width: 100px;
+                    height: 100px;
+                    line-height: 100px;
+                    border-radius: 50%;
+                    margin: 0 auto 15px;
+                    box-shadow: 0 12px 28px rgba(76, 175, 80, 0.2);
+                ">📲</div>
+                <h2 style="color: #0d2b1a; font-weight: 800; margin: 0; font-size: 1.6rem;">ติดตั้งแอปพลิเคชัน</h2>
+                <p style="color: #475569; margin-top: 8px; font-size: 0.95rem;">เพิ่มเว็บแอปนี้ลงในหน้าจอหลักของคุณ เพื่อใช้งานได้สะดวกยิ่งขึ้น</p>
+            </div>
+
+            <div style="margin: 20px 0;">
+                <h4 style="color: #0d2b1a; font-weight: 700; margin-bottom: 12px;">📌 ขั้นตอนการติดตั้ง:</h4>
+
+                <div style="background: #f8fafc; border-radius: 12px; padding: 14px 16px; margin-bottom: 10px; border-left: 4px solid #3b82f6;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span style="font-size: 1.5rem;">🤖</span>
+                        <div>
+                            <div style="font-weight: 700; color: #0d2b1a;">Android / Chrome</div>
+                            <div style="font-size: 0.85rem; color: #475569;">กดปุ่ม ⋮ (เมนู) → เลือก "ติดตั้งแอป" หรือ "Add to Home Screen"</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="background: #f8fafc; border-radius: 12px; padding: 14px 16px; margin-bottom: 10px; border-left: 4px solid #8b5cf6;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span style="font-size: 1.5rem;">🍎</span>
+                        <div>
+                            <div style="font-weight: 700; color: #0d2b1a;">iPhone / iPad (Safari)</div>
+                            <div style="font-size: 0.85rem; color: #475569;">กดปุ่ม แชร์ (⬆️) → เลือก "Add to Home Screen"</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="background: #f8fafc; border-radius: 12px; padding: 14px 16px; margin-bottom: 10px; border-left: 4px solid #10b981;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span style="font-size: 1.5rem;">💻</span>
+                        <div>
+                            <div style="font-weight: 700; color: #0d2b1a;">Desktop (Chrome / Edge)</div>
+                            <div style="font-size: 0.85rem; color: #475569;">คลิกไอคอน <span style="background: #e2e8f0; padding: 2px 8px; border-radius: 4px;">⤓</span> ที่แถบที่อยู่ หรือ กด ⋮ → ติดตั้งแอป</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div style="text-align: center; margin-top: 10px;">
+                <button id="installGuideBtn" style="
+                    background: linear-gradient(135deg, #2d7a2d, #1a5a1a);
+                    color: white;
+                    border: none;
+                    padding: 14px 32px;
+                    border-radius: 60px;
+                    font-size: 1.05rem;
+                    font-weight: 700;
+                    cursor: pointer;
+                    box-shadow: 0 6px 20px rgba(45, 122, 45, 0.3);
+                    transition: 0.3s;
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 12px;
+                    width: 100%;
+                    justify-content: center;
+                " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 8px 28px rgba(45, 122, 45, 0.4)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 6px 20px rgba(45, 122, 45, 0.3)'">
+                    📥 ติดตั้งแอปพลิเคชัน
+                </button>
+                <p style="font-size: 0.7rem; color: #94a3b8; margin-top: 10px;">💡 หลังจากติดตั้งแล้ว จะใช้งานได้แบบแอปพลิเคชัน</p>
+            </div>
+
+            <div style="text-align: center; margin-top: 12px;">
+                <button onclick="closeInstallGuide()" style="
+                    background: transparent;
+                    border: none;
+                    color: #94a3b8;
+                    font-size: 0.85rem;
+                    cursor: pointer;
+                    padding: 8px 16px;
+                    transition: 0.2s;
+                " onmouseover="this.style.color='#475569'" onmouseout="this.style.color='#94a3b8'">
+                    🔕 ไม่แสดงอีก (ปิด)
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        #install-guide::-webkit-scrollbar {
+            width: 4px;
+        }
+        #install-guide::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 4px;
+        }
+        #install-guide::-webkit-scrollbar-thumb {
+            background: #4CAF50;
+            border-radius: 4px;
+        }
+    </style>
+
+    <!-- ============================================================
+    1. LOGIN OVERLAY
+    ============================================================ -->
+    <div id="loginOverlay" class="login-overlay">
+        <div class="login-box">
+            <div class="login-header">
+                <div class="login-icon-bg">🔐</div>
+                <h2>เข้าสู่ระบบ</h2>
+            </div>
+            <form id="loginForm" onsubmit="event.preventDefault(); handleLogin();">
+                <div class="input-group">
+                    <label>ชื่อผู้ใช้ (Username)</label>
+                    <div class="input-wrapper">
+                        <span class="icon">👤</span>
+                        <input type="text" id="username" required placeholder="กรอกชื่อผู้ใช้งาน" />
+                    </div>
+                </div>
+                <div class="input-group">
+                    <label>รหัสผ่าน (Password)</label>
+                    <div class="password-wrapper">
+                        <span class="icon">🔑</span>
+                        <input type="password" id="password" required placeholder="กรอกรหัสผ่าน" />
+                        <button type="button" class="toggle-password" onclick="togglePassword()" title="แสดง/ซ่อน รหัสผ่าน">👁️</button>
+                    </div>
+                </div>
+                <label class="custom-checkbox">
+                    <input type="checkbox" id="rememberMe" />
+                    <span class="checkmark"></span>
+                    <span class="remember-text">จดจำฉันไว้ในระบบ</span>
+                </label>
+                <button type="submit" class="login-btn">เข้าสู่ระบบ 🚀</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- ============================================================
+    2. MAIN APPLICATION
+    ============================================================ -->
+    <div class="container" id="mainApp" style="display: none;">
+
+        <!-- ===== HEADER ===== -->
+        <div class="main-header-wrapper">
+            <div class="unified-header-box">
+                <h1 id="projectTitle" class="header-title">กำลังโหลด...</h1>
+                <div class="header-user-actions" id="userInfo" style="display: none;">
+                    <div class="user-controls">
+                        <span class="user-avatar">👤</span>
+                        <span class="user-name" id="currentUserName"></span>
+                        <button id="adminMenuToggleBtn" onclick="toggleAdminMenu()" style="display:none;" class="gear-btn">⚙️</button>
+                        <button onclick="logout()" class="logout-btn-pill">ออก</button>
+                    </div>
+                    <div class="online-status-pill" id="onlineUsersCompact">
+                        <span class="online-dot">🟢</span>
+                        <span id="compactOnlineText">ออนไลน์ 0 คน</span>
+                        <div class="compact-users-list" id="compactUsersList"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== PWA INSTALL BUTTON ===== -->
+        <button id="btnInstall" style="display: none; background: #3b82f6; color: white; padding: 10px 20px; border-radius: 20px; border: none; cursor: pointer; font-weight: bold; margin: 10px auto; box-shadow: 0 4px 6px rgba(59, 130, 246, 0.3);">
+            📲 ติดตั้งแอปพลิเคชันลงเครื่อง
+        </button>
+
+        <!-- ===== STANDALONE ALERT PANEL ===== -->
+        <div id="standaloneAlertPanel" class="alert-panel-blink" style="display: none; background: #fee2e2; padding: 20px; border: 3px solid #ef4444; border-radius: 12px; margin-bottom: 25px; box-shadow: 0 10px 15px -3px rgba(239, 68, 68, 0.3);">
+            <h3 style="color: #b91c1c; margin-top: 0; margin-bottom: 15px; display: flex; align-items: center; font-size: 1.2rem;">
+                <span style="margin-right: 10px; font-size: 1.5rem;">🚨</span> แจ้งเตือน: พบอุปกรณ์ขัดข้อง
+            </h3>
+            <div id="alertListContainer" style="display: flex; gap: 12px; flex-wrap: wrap;"></div>
+        </div>
+
+        <!-- ===== 3.1 STATUS BAR ===== -->
+        <div class="status-bar" id="status-bar">
+            <div style="display: flex; flex-direction: column; width: 100%; gap: 6px;">
+                <div id="espStatusContainer" style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                    <span style="font-weight: 600; color: #0d2b1a; font-size: 0.85rem;">🔌 ESP32 Connection:</span>
+                    <span id="espStatus" class="connection-status offline">Disconnected</span>
+                    <div class="sync-status" id="syncStatus">✅ Ready</div>
+                    <div style="display: flex; align-items: center; gap: 6px; margin-left: 4px;">
+                        <span style="color: #475569; font-size: 0.7rem;">📋</span>
+                        <select id="boardSelector" onchange="updateStatusBarBoardDetails()" style="display: none; padding: 3px 10px; font-size: 0.7rem; background: #ffffff; color: #1a1a2e; border: 1px solid #cbd5e1; border-radius: 6px; cursor: pointer; outline: none; max-width: 180px; transition: all 0.2s;">
+                            <option value="all">📊 แสดงทั้งหมด</option>
+                        </select>
+                    </div>
+                </div>
+                <div id="boardDetailStatus" style="display: none; margin-top: 2px; padding: 8px 14px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0; box-shadow: 0 2px 8px rgba(0,0,0,0.06); color: #1a202c;">
+                    <!-- เนื้อหาจะถูกสร้างโดย JavaScript -->
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== 3.2 SENSOR GRID ===== -->
+        <div class="sensor-grid" id="sensorGridContainer">
+            <div style="width:100%; text-align:center; color:#94a3b8; grid-column: 1 / -1; padding:20px;">กำลังโหลดการตั้งค่าอุปกรณ์...</div>
+        </div>
+
+        <!-- ===== 3.2.1 WEATHER CARDS CONTAINER ===== -->
+        <div id="weatherCardsContainer">
+            <div style="color: #94a3b8; padding: 20px; text-align: center; width: 100%;">
+                ⏳ กำลังโหลดข้อมูลสภาพอากาศ...
+            </div>
+        </div>
+
+        <!-- ===== 3.3 CHART ===== -->
+        <div class="chart-container" id="chartContainer">
+            <div class="chart-header">
+                <h3>📊 กราฟแสดงข้อมูลแบบ Real-time</h3>
+                <button onclick="toggleChart()" id="chartToggleBtn" class="chart-toggle-btn shrink">
+                    🔽 แสดงกราฟ
+                </button>
+            </div>
+            <div id="chartCanvasWrapper">
+                <canvas id="sensorChart"></canvas>
+            </div>
+        </div>
+
+        <!-- ===== 3.4 SUMMARY TABLE ===== -->
+        <div class="status-summary-container">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h3 style="margin: 0; color: #e2e8f0; display: flex; align-items: center; gap: 10px;">📋 สถานะอุปกรณ์และการแจ้งเตือน</h3>
+                <button onclick="toggleSummaryTable()" id="toggleTableBtn" class="toggle-table-btn">
+                    <span id="btnIcon">🔽</span> <span id="btnText">แสดงตาราง</span>
+                </button>
+            </div>
+            <div id="summaryTableWrapper" style="display: none; transition: all 0.3s ease-in-out;">
+                <div class="device-table-wrapper">
+                    <table class="device-table">
+                        <thead><tr><th>ชื่ออุปกรณ์</th><th>ประเภทการวัด</th><th>สถานะการทำงาน</th><th>สถานะแจ้งเตือน</th><th>จัดการ</th></tr></thead>
+                        <tbody id="summaryTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== 3.5 ADMIN MENU MODAL ===== -->
+        <div id="adminMenuModal" class="modal-overlay" style="display: none;">
+            <div class="modal-content" style="max-width: 450px; display: flex; flex-direction: column;">
+                <div class="modal-header">
+                    <h2 style="margin: 0; font-size: 1.25rem;">🛡️ Admin Menu</h2>
+                    <button onclick="toggleAdminMenu()" class="close-btn" aria-label="ปิด"></button>
+                </div>
+                <div id="adminControls" class="role-hidden" style="flex-direction: column; gap: 10px; width: 100%;">
+                    <button onclick="openTitleEditor()" style="width:100%; text-align:left; padding: 14px 20px; border-radius: 12px; background: #3b82f6; color:white; border:none; cursor:pointer; display: flex; align-items: center; gap: 10px;">
+                        ✏️ เปลี่ยนชื่อโครงการ
+                    </button>
+                    <button onclick="confirmClearLocalData()" class="danger" style="width:100%; text-align:left; padding: 14px 20px; border-radius: 12px; background: #c62828; color:white; border:none; cursor:pointer; display: flex; align-items: center; gap: 10px;">
+                        🗑️ Clear Local Data
+                    </button>
+                    <button onclick="openUserManager()" style="width:100%; text-align:left; padding: 14px 20px; border-radius: 12px; background: #ff9800; color:white; border:none; cursor:pointer; display: flex; align-items: center; gap: 10px;">
+                        👥 จัดการผู้ใช้
+                    </button>
+                    <button onclick="openDeviceManager()" style="width:100%; text-align:left; padding: 14px 20px; border-radius: 12px; background: #2196F3; color:white; border:none; cursor:pointer; display: flex; align-items: center; gap: 10px;">
+                        ⚙️ จัดการบอร์ดและเซนเซอร์
+                    </button>
+                    <button onclick="openSettingsManager()" style="width:100%; text-align:left; padding: 14px 20px; border-radius: 12px; background: #9C27B0; color:white; border:none; cursor:pointer; display: flex; align-items: center; gap: 10px;">
+                        🛠️ ตั้งค่ารายงาน &amp; สำรองข้อมูล
+                    </button>
+                    <button onclick="openGlobalAlertSettings()" style="width:100%; text-align:left; padding: 14px 20px; border-radius: 12px; background: #8b5cf6; color:white; border:none; cursor:pointer; display: flex; align-items: center; gap: 10px;">
+                        🔔 ตั้งค่าการแจ้งเตือน (Global)
+                    </button>
+                    <button onclick="showInstallGuide()" style="width:100%; text-align:left; padding: 14px 20px; border-radius: 12px; background: #10b981; color:white; border:none; cursor:pointer; display: flex; align-items: center; gap: 10px;">
+                        📲 แนะนำการติดตั้งเว็บแอป
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== 3.6 USER ACTIONS ===== -->
+        <div class="user-actions" id="userActions" style="text-align: center; margin-bottom: 0;">
+            <select id="reportTypeSelect" style="padding: 10px; border-radius: 8px; margin-bottom: 10px; background: #ffffff; color: #1a1a2e; border: 1px solid #cbd5e1; min-width: 250px;">
+                <option value="status">📊 รายละเอียดการวัดล่าสุด (แบบละเอียด)</option>
+                <option value="system">⚙️ รายงานสถานะอุปกรณ์และระบบ</option>
+                <option value="summary">📈 สรุปข้อมูลเชิงวิเคราะห์ (Analytics)</option>
+            </select>
+            <br />
+            <button onclick="window.triggerManualReport && triggerManualReport()" class="tele-btn-manual">
+                🚀 ส่งรายงานทาง Telegram ทันที
+            </button>
+        </div>
+
+        <!-- ===== 3.7 ANALYTICAL SUMMARY SECTION ===== -->
+        <div id="analyticsSection">
+            <div class="analytics-header">
+                <h3>📈 สรุปข้อมูลเชิงวิเคราะห์ (Analytics)</h3>
+                <button onclick="toggleAnalytics()" id="analyticsToggleBtn" class="analytics-toggle-btn show">
+                    🔽 แสดง Analytics
+                </button>
+            </div>
+            <div id="analyticsContentWrapper">
+
+                <!-- ส่วนเลือกช่วงเวลาด่วน -->
+                <div style="margin-bottom: 20px; padding: 12px; background: #1e293b; border-radius: 8px; border-left: 4px solid #3b82f6;">
+                    <label style="color: #94a3b8; font-size: 0.8rem; display: block; margin-bottom: 10px;">📅 เลือกช่วงเวลาด่วน:</label>
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+                        <button onclick="setAnalyticsPreset('today')" class="btn-small" style="background: #475569; color: white; border: none; padding: 6px 14px; border-radius: 4px; cursor: pointer;">วันนี้</button>
+                        <button onclick="setAnalyticsPreset('yesterday')" class="btn-small" style="background: #475569; color: white; border: none; padding: 6px 14px; border-radius: 4px; cursor: pointer;">เมื่อวาน</button>
+                        <button onclick="setAnalyticsPreset('24h')" class="btn-small" style="background: #3b82f6; color: white; border: none; padding: 6px 14px; border-radius: 4px; cursor: pointer;">24 ชม. ล่าสุด</button>
+                        <button onclick="setAnalyticsPreset('3d')" class="btn-small" style="background: #475569; color: white; border: none; padding: 6px 14px; border-radius: 4px; cursor: pointer;">3 วันที่ผ่านมา</button>
+                        <button onclick="setAnalyticsPreset('7d')" class="btn-small" style="background: #475569; color: white; border: none; padding: 6px 14px; border-radius: 4px; cursor: pointer;">7 วันที่ผ่านมา</button>
+                        <div style="display: flex; align-items: center; gap: 5px; margin-left: 10px; border-left: 1px solid #334155; padding-left: 10px;">
+                            <span style="color: #94a3b8; font-size: 0.75rem;">ย้อนหลัง</span>
+                            <input type="number" id="customBacktrackDays" value="1" min="1" max="90" style="width: 50px; padding: 4px; border-radius: 4px; border: 1px solid #475569; background: #0f172a; color: #fff;">
+                            <span style="color: #94a3b8; font-size: 0.75rem;">วัน</span>
+                            <button onclick="setAnalyticsPreset('custom')" class="btn-small" style="background: #10b981; color: white; border: none; padding: 6px 14px; border-radius: 4px; cursor: pointer;">ตกลง</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ส่วนกำหนดวัน/เวลาละเอียด -->
+                <div style="display: flex; gap: 15px; flex-wrap: wrap; align-items: center; margin-bottom: 15px;">
+                    <div>
+                        <label style="color: #94a3b8; font-size: 0.75rem; display: block; margin-bottom: 4px;">📅 วันที่เริ่มต้น</label>
+                        <input type="datetime-local" id="summaryStart" style="padding: 8px; border-radius: 6px; border: 1px solid #475569; background: #1e293b; color: #e2e8f0;" />
+                    </div>
+                    <div>
+                        <label style="color: #94a3b8; font-size: 0.75rem; display: block; margin-bottom: 4px;">📅 วันที่สิ้นสุด</label>
+                        <input type="datetime-local" id="summaryEnd" style="padding: 8px; border-radius: 6px; border: 1px solid #475569; background: #1e293b; color: #e2e8f0;" />
+                    </div>
+                    <div style="display: flex; align-items: flex-end; height: 100%; padding-top: 18px;">
+                        <button onclick="runSummaryQuery()" class="btn-small" style="background: #3b82f6; padding: 10px 24px; font-weight: bold; box-shadow: 0 4px 6px rgba(59, 130, 246, 0.3); color: white; border: none; border-radius: 6px; cursor: pointer;">🔍 วิเคราะห์ข้อมูล</button>
+                    </div>
+                </div>
+
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; padding: 0 5px; flex-wrap: wrap; gap: 8px;">
+                    <div style="color: #94a3b8; font-size: 0.75rem;">
+                        หน่วยการสรุป: <span id="summaryGroupType" style="color: #60a5fa; font-weight: bold;">--</span>
+                        <span id="dataLimitHint" style="margin-left: 10px; color: #f59e0b; display: none;">⚠️ (ข้อมูลอาจแสดงไม่ครบตามขอบเขตที่ตั้งไว้ใน Auto-Log)</span>
+                    </div>
+                    <button onclick="exportSummaryToCSV()" class="btn-small" style="background: #059669; font-size: 0.7rem; color: white; border: none; padding: 6px 14px; border-radius: 4px; cursor: pointer;">📥 ดาวน์โหลด CSV</button>
+                </div>
+
+                <div class="device-table-wrapper">
+                    <table class="device-table">
+                        <thead>
+                            <tr>
+                                <th>⏱️ ช่วงเวลา</th>
+                                <th>📛 อุปกรณ์</th>
+                                <th>📊 ค่าเริ่มต้น ➔ ค่าสุดท้าย</th>
+                                <th>📈 การเปลี่ยนแปลง</th>
+                                <th>📌 สถานะ</th>
+                            </tr>
+                        </thead>
+                        <tbody id="summaryTableBody">
+                            <tr><td colspan="5" style="text-align:center; padding: 30px; color:#64748b;">📭 เลือกช่วงเวลาและกดวิเคราะห์ข้อมูล</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+            </div>
+        </div>
+
+    </div>
+
+    <!-- ============================================================
+    4. MODAL: EDIT PROJECT TITLE
+    ============================================================ -->
+    <div id="titleModal" class="modal-overlay" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>✏️ แก้ไขชื่อโครงการ</h2>
+                <button onclick="closeTitleEditor()" class="close-btn" aria-label="ปิด"></button>
+            </div>
+            <input type="text" id="newProjectTitle" placeholder="กรอกชื่อใหม่" style="width: 100%; padding: 12px; margin: 15px 0; border-radius: 8px; border: 1px solid #cbd5e1; background: #ffffff; color: #1a1a2e;" />
+            <div style="display: flex; gap: 10px;">
+                <button onclick="saveProjectTitle()" class="save-btn" style="flex:1;">💾 บันทึก</button>
+                <button onclick="deleteProjectTitle()" class="danger" style="flex:1;">🗑️ ลบชื่อโครงการ</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================
+    5. MODAL: USER MANAGER
+    ============================================================ -->
+    <div id="userModal" class="modal-overlay" style="display: none;">
+        <div class="modal-content" style="max-width: 1200px;">
+            <div class="modal-header">
+                <h2>👥 จัดการผู้ใช้งานระบบ</h2>
+                <button onclick="closeUserManager()" class="close-btn" aria-label="ปิด"></button>
+            </div>
+            <div class="user-management-form">
+                <h3 style="margin-bottom: 15px; color: #0d2b1a;">➕ เพิ่ม/แก้ไขข้อมูลผู้ใช้</h3>
+                <div class="input-row">
+                    <input type="text" id="manageUsername" placeholder="👤 ชื่อผู้ใช้ (Username)" autocomplete="off" />
+                    <input type="text" id="managePassword" placeholder="🔑 รหัสผ่าน (Password)" autocomplete="off" />
+                    <select id="manageRole">
+                        <option value="user">👤 User (ผู้ใช้งานทั่วไป)</option>
+                        <option value="admin">👑 Admin (ผู้ดูแลระบบ)</option>
+                    </select>
+                    <button onclick="saveUser()" class="save-btn" style="background: linear-gradient(135deg, #10b981, #059669);">💾 บันทึก</button>
+                </div>
+                <p style="font-size:0.75rem; color:#475569; margin-top: 10px;">* หมายเหตุ: ชื่อผู้ใช้ต้องไม่ซ้ำกัน และรหัสผ่านแนะนำให้ตั้งอย่างน้อย 4 ตัวอักษร</p>
+            </div>
+            <div style="margin-top: 20px;">
+                <h3 style="margin-bottom: 15px; color: #0d2b1a;">📋 รายการผู้ใช้งานทั้งหมด</h3>
+                <div class="user-table-wrapper">
+                    <table class="user-table" id="user-table">
+                        <thead><tr><th style="width: 25%;">👤 ชื่อผู้ใช้</th><th style="width: 25%;">🔐 รหัสผ่าน</th><th style="width: 20%;">⭐ สิทธิ์การใช้งาน</th><th style="width: 30%;">⚙️ จัดการ</th></tr></thead>
+                        <tbody id="userTableBody"><tr><td colspan="4" style="text-align: center; padding: 40px; color:#64748b;">📥 กำลังโหลดข้อมูล...</td></tr></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================
+    6. MODAL: DEVICE MANAGER
+    ============================================================ -->
+    <div id="deviceModal" class="modal-overlay" style="display: none;">
+        <div class="modal-content" style="max-width: 1200px;">
+            <div class="modal-header">
+                <h2>⚙️ จัดการอุปกรณ์และเซนเซอร์</h2>
+                <button onclick="closeDeviceManager()" class="close-btn" aria-label="ปิด"></button>
+            </div>
+
+            <!-- 6.1 BOARD SECTION -->
+            <section id="boardSection" style="margin-bottom: 40px;">
+                <h3 style="color: #0d2b1a;">🔌 จัดการบอร์ด ESP32</h3>
+                <button onclick="startProvisioningProcess()" class="save-btn" style="background: linear-gradient(135deg, #f59e0b, #d97706); padding: 10px 24px; border: none; border-radius: 8px; color: white; cursor: pointer; font-weight: bold;">🔍 สแกนและติดตั้งบอร์ด (Auto-Scan)</button>
+                <div style="margin-top: 10px; margin-bottom: 10px;">
+                    <input type="text" id="searchBoard" onkeyup="filterBoardTable()" placeholder="🔍 ค้นหาบอร์ด..." style="padding: 8px 16px; border-radius: 8px; border: 1px solid #cbd5e1; background: #ffffff; color: #1a1a2e; width: 100%; max-width: 300px;" />
+                </div>
+                <div class="device-table-wrapper" style="margin-top:10px;">
+                    <table class="device-table">
+                        <thead><tr><th style="width: 40%;">🆔 บอร์ด ID</th><th style="width: 30%;">สถานะ</th><th style="width: 30%;">⚙️ จัดการ</th></tr></thead>
+                        <tbody id="boardTableBody"><tr><td colspan="3" style="text-align: center; padding: 20px; color:#64748b;">📥 กำลังโหลดข้อมูลบอร์ด...</td></tr></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- 6.2 SENSOR SECTION -->
+            <section id="sensorSection">
+                <h3 style="color: #0d2b1a;">🌱 จัดการเซนเซอร์ในแต่ละจุด</h3>
+
+                <div id="sensorDiscoverySection" style="margin-bottom: 20px; padding: 15px; background: #f0f7ff; border-radius: 8px; border: 1px dashed #3b82f6;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 8px;">
+                        <h4 style="color: #1a3a5f; margin: 0; display: flex; align-items: center; gap: 8px;">🔍 ระบบตรวจพบเซนเซอร์ใหม่อัตโนมัติ</h4>
+                        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                            <button onclick="scanForNewSensors()" class="btn-small" style="background: #3b82f6; padding: 8px 16px;">🔄 สแกนหาเซนเซอร์ที่กำลังออนไลน์</button>
+                            <button onclick="cleanSensorCurrent()" class="btn-small" style="background: #ef4444; padding: 8px 16px;">🧹 ล้างฟิลด์ที่ไม่ใช่เซนเซอร์</button>
+                        </div>
+                    </div>
+                    <div id="discoveryResults" style="display: flex; gap: 10px; flex-wrap: wrap;">
+                        <span style="color: #475569; font-size: 0.85rem;">กดปุ่มสแกน เพื่อค้นหาเซนเซอร์ที่บอร์ดส่งค่าเข้ามาแต่ยังไม่ได้ตั้งค่า</span>
+                    </div>
+                </div>
+
+                <div class="user-management-form">
+                    <h3 style="margin-bottom: 15px; color: #0d2b1a;">➕ เพิ่ม/แก้ไขเซนเซอร์</h3>
+
+                    <div class="input-row">
+                        <input type="text" id="devId" placeholder="🆔 ID (เช่น us_01, soil_01)" autocomplete="off" style="flex: 1; min-width: 120px; padding: 8px 12px; border-radius: 6px; border: 1px solid #cbd5e1; background: #ffffff; color: #1a1a2e;" />
+                        <input type="text" id="devName" placeholder="📛 ชื่อจุดติดตั้ง (เช่น บ่อปลา 1)" autocomplete="off" style="flex: 1; min-width: 120px; padding: 8px 12px; border-radius: 6px; border: 1px solid #cbd5e1; background: #ffffff; color: #1a1a2e;" />
+                        <select id="devBoardId" style="flex: 1; min-width: 150px; padding: 8px 12px; border-radius: 6px; border: 1px solid #cbd5e1; background: #ffffff; color: #1a1a2e;">
+                            <option value="">-- เลือกบอร์ดที่เชื่อมต่อ --</option>
+                        </select>
+                        <select id="devType" onchange="updateDynamicFields(); updateCustomTypeVisibility();" style="flex: 1; min-width: 120px; padding: 8px 12px; border-radius: 6px; border: 1px solid #cbd5e1; background: #ffffff; color: #1a1a2e;">
+                            <option value="ultrasonic">📡 Ultrasonic (วัดระยะ)</option>
+                            <option value="soil">🌱 Soil (ความชื้นดิน)</option>
+                            <option value="rain">🌧️ Rain (น้ำฝน)</option>
+                            <option value="ph">🧪 pH (ค่ากรดด่าง)</option>
+                            <option value="temp">🌡️ Temperature (อุณหภูมิ)</option>
+                            <option value="other">📝 อื่นๆ (ระบุเอง)</option>
+                        </select>
+                        <input type="text" id="devUnit" placeholder="📏 หน่วย (เช่น cm, %, °C)" autocomplete="off" style="flex: 1; min-width: 80px; padding: 8px 12px; border-radius: 6px; border: 1px solid #cbd5e1; background: #ffffff; color: #1a1a2e;" />
+                    </div>
+
+                    <div id="customTypeContainer" style="display:none; margin-top:10px;">
+                        <input type="text" id="devTypeCustom" placeholder="ระบุชนิดเซนเซอร์ของคุณที่นี่ (เช่น Lux, CO2, PM2.5)" style="width:100%; padding: 8px 12px; border-radius: 6px; border: 1px solid #cbd5e1; background: #ffffff; color: #1a1a2e;" />
+                    </div>
+
+                    <div id="sensorModeContainer" style="margin-top: 12px; margin-bottom: 8px;"></div>
+
+                    <div id="ultrasonicVerticalConfig" style="display:none; margin-top: 15px; padding: 15px; background: #f0f7ff; border-radius: 8px; border: 1px solid #3b82f6;">
+                        <h4 style="color: #1a3a5f; margin-bottom: 10px;">🌊 ตั้งค่าการวัดระดับน้ำแนวตั้ง</h4>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                            <div>
+                                <label id="installHeightLabel" style="color: #475569; font-size: 0.75rem; display: block; margin-bottom: 4px;">📏 ระยะติดตั้ง (เซนเซอร์ถึงก้นบ่อ)</label>
+                                <input type="number" id="installHeight" placeholder="เช่น 200 (cm)" step="any" style="width:100%; padding: 8px; border-radius: 6px; border: 1px solid #cbd5e1; background: #ffffff; color: #1a1a2e;" />
+                            </div>
+                            <div>
+                                <label id="bankHeightLabel" style="color: #475569; font-size: 0.75rem; display: block; margin-bottom: 4px;">⚠️ ระดับตลิ่ง (วัดจากก้นบ่อขึ้นมา)</label>
+                                <input type="number" id="bankHeight" placeholder="เช่น 180 (cm)" step="any" style="width:100%; padding: 8px; border-radius: 6px; border: 1px solid #cbd5e1; background: #ffffff; color: #1a1a2e;" />
+                            </div>
+                        </div>
+                        <p style="font-size: 0.65rem; color: #475569; margin-top: 8px;">
+                            * สูตร: ระดับน้ำจริง = ระยะติดตั้ง - ระยะที่เซนเซอร์วัดได้<br />
+                            * ถ้าระดับน้ำจริง ≥ ระดับตลิ่ง = <b>น้ำท่วมตลิ่ง</b>
+                        </p>
+                        <div style="margin-top: 15px; border-top: 1px solid #d1d5db; padding-top: 10px;">
+                            <label style="color: #1a3a5f; font-size: 0.8rem; display: block; margin-bottom: 5px;">🚀 คำนวณและสร้างระดับการเตือนอัตโนมัติ:</label>
+                            <div style="display: flex; gap: 10px;">
+                                <input type="number" id="autoLevelCount" value="5" min="2" max="10" style="width: 60px; padding: 5px; background: #ffffff; color: #1a1a2e; border: 1px solid #cbd5e1; border-radius: 4px;">
+                                <span style="align-self: center; font-size: 0.8rem; color: #475569;">ระดับ</span>
+                                <button type="button" onclick="calculateAndApplyWaterLevels()" style="background: #3b82f6; color: white; border: none; padding: 5px 15px; border-radius: 4px; cursor: pointer;">คำนวณ</button>
+                            </div>
+                            <div style="font-size: 0.6rem; color: #64748b; margin-top: 4px;">
+                                ⚡ ระบบจะแบ่งช่วงระดับน้ำจาก 0 ถึงระดับตลิ่งตามจำนวนระดับที่เลือก พร้อมตั้งค่าระดับบนสุด 2 ระดับเป็น "แจ้งเตือน"
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="ultrasonicHorizontalConfig" style="display:none; margin-top: 15px; padding: 15px; background: #fffbeb; border-radius: 8px; border: 1px solid #f59e0b;">
+                        <h4 style="color: #92400e; margin-bottom: 10px;">📐 ตั้งค่าการวัดระยะแนวนอน</h4>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                            <div>
+                                <label style="color: #475569; font-size: 0.75rem; display: block; margin-bottom: 4px;">📏 ระยะอ้างอิงสูงสุด (Max Range)</label>
+                                <input type="number" id="horizontalMaxRange" placeholder="เช่น 400 (cm)" step="any" style="width:100%; padding: 8px; border-radius: 6px; border: 1px solid #cbd5e1; background: #ffffff; color: #1a1a2e;" />
+                            </div>
+                            <div>
+                                <label style="color: #475569; font-size: 0.75rem; display: block; margin-bottom: 4px;">⚠️ ระยะเตือน (Warning Range)</label>
+                                <input type="number" id="horizontalWarningRange" placeholder="เช่น 50 (cm)" step="any" style="width:100%; padding: 8px; border-radius: 6px; border: 1px solid #cbd5e1; background: #ffffff; color: #1a1a2e;" />
+                            </div>
+                        </div>
+                        <p style="font-size: 0.65rem; color: #475569; margin-top: 8px;">
+                            * โหมดแนวนอน: ระบบจะแสดงค่าระยะที่วัดได้โดยตรง<br />
+                            * ใช้สำหรับตรวจจับวัตถุ วัดระยะห่าง หรือวัดระยะเปิด-ปิด
+                        </p>
+                    </div>
+
+                    <div id="ultrasonicInstruction" style="margin-top: 15px; padding: 15px; background: #ecfdf5; border-radius: 8px; border: 1px solid #10b981; font-size: 0.8rem; color: #064e3b;">
+                        <h4 style="color: #047857; margin-bottom: 8px;">💡 คำแนะนำการตั้งค่าให้ถูกต้อง:</h4>
+                        <ul style="padding-left: 20px; margin: 0;">
+                            <li><b>โหมดแนวตั้ง:</b> วัดระยะติดตั้งจากจุดติดตั้งเซนเซอร์ถึงก้นบ่อ และระดับตลิ่งจากก้นบ่อถึงจุดที่น้ำจะล้น</li>
+                            <li><b>โหมดแนวนอน:</b> ตั้งค่าระยะอ้างอิงสูงสุดและระยะเตือน สำหรับการตรวจจับวัตถุหรือวัดระยะห่าง</li>
+                            <li>🔹 ใช้ปุ่ม <b>"คำนวณ"</b> ในโหมดแนวตั้งเพื่อสร้างระดับการเตือนอัตโนมัติ</li>
+                        </ul>
+                    </div>
+
+                    <div id="templateSelectorContainer" style="margin-top: 12px; margin-bottom: 8px;"></div>
+
+                    <div id="autoGenerateContainer" style="margin-bottom: 8px; padding: 8px 12px; background: #f8fafc; border-radius: 6px; border: 1px solid #e2e8f0;">
+                        <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+                            <span style="color: #475569; font-size: 0.75rem;">⚡ สร้างระดับอัตโนมัติ:</span>
+                            <input type="number" id="autoMin" placeholder="Min" step="any" style="width: 70px; padding: 4px 8px; border-radius: 4px; border: 1px solid #cbd5e1; background: #ffffff; color: #1a1a2e; font-size: 0.75rem;" />
+                            <span style="color: #64748b; font-size: 0.7rem;">ถึง</span>
+                            <input type="number" id="autoMax" placeholder="Max" step="any" style="width: 70px; padding: 4px 8px; border-radius: 4px; border: 1px solid #cbd5e1; background: #ffffff; color: #1a1a2e; font-size: 0.75rem;" />
+                            <span style="color: #64748b; font-size: 0.7rem;">จำนวน:</span>
+                            <input type="number" id="genCountInput" value="3" min="1" max="10" style="width: 50px; padding: 4px 8px; border-radius: 4px; border: 1px solid #cbd5e1; background: #ffffff; color: #1a1a2e; font-size: 0.75rem;" />
+                            <button type="button" onclick="applyCustomAutoLevels()" style="background: #3b82f6; color: white; border: none; padding: 4px 12px; border-radius: 4px; cursor: pointer; font-size: 0.75rem;">⚡ สร้าง</button>
+                        </div>
+                    </div>
+
+                    <div id="riverModeContainer" style="margin-bottom: 8px; padding: 8px 12px; background: #f8fafc; border-radius: 6px; border: 1px solid #e2e8f0;">
+                        <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+                            <span style="color: #475569; font-size: 0.75rem;">🌊 River Mode (Ultrasonic):</span>
+                            <input type="number" id="riverMin" placeholder="Min" step="any" style="width: 60px; padding: 4px 8px; border-radius: 4px; border: 1px solid #cbd5e1; background: #ffffff; color: #1a1a2e; font-size: 0.75rem;" />
+                            <span style="color: #64748b; font-size: 0.7rem;">ปกติ</span>
+                            <input type="number" id="riverNormal" placeholder="Normal" step="any" style="width: 60px; padding: 4px 8px; border-radius: 4px; border: 1px solid #cbd5e1; background: #ffffff; color: #1a1a2e; font-size: 0.75rem;" />
+                            <span style="color: #64748b; font-size: 0.7rem;">เตือน</span>
+                            <input type="number" id="riverWarning" placeholder="Warning" step="any" style="width: 60px; padding: 4px 8px; border-radius: 4px; border: 1px solid #cbd5e1; background: #ffffff; color: #1a1a2e; font-size: 0.75rem;" />
+                            <span style="color: #64748b; font-size: 0.7rem;">วิกฤต</span>
+                            <input type="number" id="riverCritical" placeholder="Critical" step="any" style="width: 60px; padding: 4px 8px; border-radius: 4px; border: 1px solid #cbd5e1; background: #ffffff; color: #1a1a2e; font-size: 0.75rem;" />
+                            <button type="button" onclick="applyRiverLevels()" style="background: #10b981; color: white; border: none; padding: 4px 16px; border-radius: 4px; cursor: pointer; font-size: 0.75rem;">🌊 ตั้งค่า</button>
+                        </div>
+                        <div style="font-size: 0.6rem; color: #64748b; margin-top: 4px;">ใช้สำหรับเซนเซอร์ Ultrasonic ที่วัดระดับน้ำจริง (หน่วย cm)</div>
+                    </div>
+
+                    <div class="level-config-inline" style="margin-top: 12px; padding: 16px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 10px;">
+                            <h4 style="color: #0d2b1a; margin: 0; font-size: 1rem;">📊 กำหนดเกณฑ์ระดับและการแจ้งเตือน</h4>
+                            <div style="display: flex; gap: 8px;">
+                                <button type="button" onclick="addDynamicLevelRow()" class="btn-small" style="background: #10b981;">➕ เพิ่มระดับ</button>
+                                <button type="button" onclick="generateAutoLevels()" class="btn-small" style="background: #3b82f6;">⚡ คำนวณอัตโนมัติ</button>
+                            </div>
+                        </div>
+                        <div id="autoGenInputs" style="display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 8px; margin-bottom: 12px; padding: 10px; background: #ffffff; border-radius: 6px;">
+                            <input type="number" id="genMin" placeholder="ค่าต่ำสุด" style="padding: 5px; border-radius: 4px; border: 1px solid #cbd5e1; background: #ffffff; color: #1a1a2e;">
+                            <input type="number" id="genMax" placeholder="ค่าสูงสุด" style="padding: 5px; border-radius: 4px; border: 1px solid #cbd5e1; background: #ffffff; color: #1a1a2e;">
+                            <input type="number" id="genCount" placeholder="จำนวนระดับ" value="3" style="padding: 5px; border-radius: 4px; border: 1px solid #cbd5e1; background: #ffffff; color: #1a1a2e;">
+                            <span style="color: #64748b; font-size: 0.7rem; align-self: center;">(ระบบจะแบ่งช่วงให้อัตโนมัติ)</span>
+                        </div>
+                        <div id="dynamicLevelsContainer" style="display: flex; flex-direction: column; gap: 8px;"></div>
+                        <div style="margin-top: 15px; padding-top: 10px; border-top: 1px solid #e2e8f0;">
+                            <label style="display: flex; align-items: center; gap: 10px; color: #475569; font-size: 0.85rem; cursor: pointer;">
+                                <input type="checkbox" id="eventModeEnabled"> 
+                                🛡️ <b>โหมดป้องกันการแจ้งเตือนซ้ำ (Event Mode)</b>
+                            </label>
+                            <div id="eventSettings" style="margin-top: 8px; display: none; padding-left: 25px;">
+                                <span style="font-size: 0.75rem; color: #64748b;">รอให้สถานะนิ่งเป็นเวลา</span>
+                                <input type="number" id="eventDebounceTime" value="2" style="width: 50px; padding: 2px 5px; background: #ffffff; color: #1a1a2e; border: 1px solid #cbd5e1; border-radius: 4px;"> 
+                                <span style="font-size: 0.75rem; color: #64748b;">นาที ก่อนยืนยันสถานะใหม่ (เช่น ฝนหยุดตก)</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="advancedAlertSection" class="advanced-alert-config" style="margin-top: 15px; padding: 12px 16px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
+                        <h4 style="color: #0d2b1a; margin: 0 0 10px 0; font-size: 0.95rem; display: flex; align-items: center; gap: 8px;">
+                            ⚙️ ตั้งค่าการแจ้งเตือนขั้นสูง
+                            <span style="font-size: 0.7rem; color: #64748b; font-weight: normal;">(Threshold & Rate of Change)</span>
+                        </h4>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
+                            <div>
+                                <label style="color: #475569; font-size: 0.7rem; display: block; margin-bottom: 2px;">ค่าวิกฤตที่ต้องการแจ้ง</label>
+                                <input type="number" id="alertThreshold" placeholder="ค่าวิกฤต" step="any" style="width:100%; padding: 8px; border-radius: 6px; border: 1px solid #cbd5e1; background: #ffffff; color: #1a1a2e;" />
+                            </div>
+                            <div>
+                                <label style="color: #475569; font-size: 0.7rem; display: block; margin-bottom: 2px;">อัตราการเพิ่มที่แจ้ง</label>
+                                <input type="number" id="alertRateChange" placeholder="อัตราการเพิ่ม" step="any" style="width:100%; padding: 8px; border-radius: 6px; border: 1px solid #cbd5e1; background: #ffffff; color: #1a1a2e;" />
+                            </div>
+                            <div>
+                                <label style="color: #475569; font-size: 0.7rem; display: block; margin-bottom: 2px;">ในเวลา (นาที)</label>
+                                <input type="number" id="alertRateTime" placeholder="นาที" min="1" style="width:100%; padding: 8px; border-radius: 6px; border: 1px solid #cbd5e1; background: #ffffff; color: #1a1a2e;" />
+                            </div>
+                        </div>
+                        <div style="font-size: 0.6rem; color: #64748b; margin-top: 6px;">⚠️ ระบบจะแจ้งเตือนเมื่อค่า ≥ Threshold หรืออัตราการเพิ่ม ≥ RateChange ภายในเวลาที่กำหนด</div>
+                    </div>
+
+                    <div id="alertConfigSection" class="alert-config-panel" style="margin-top: 20px; padding: 15px; background: #f0f7ff; border-radius: 8px; border: 1px solid #3b82f6;">
+                        <h4 style="color: #1a3a5f; margin: 0 0 10px 0; font-size: 1rem; border-bottom: 1px solid #d1d5db; padding-bottom: 8px;">📢 หัวข้อ: การตั้งค่าการแจ้งเตือน (Alert Settings)</h4>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 10px;">
+                            <div>
+                                <label style="color: #475569; font-size: 0.8rem; display: block; margin-bottom: 5px;">📊 จำกัดจำนวนครั้งการแจ้งเตือน (Limit)</label>
+                                <input type="number" id="alertLimit" placeholder="เช่น 3" min="1" max="99" style="width:100%; padding: 10px; border-radius: 6px; border: 1px solid #cbd5e1; background: #ffffff; color: #1a1a2e;" />
+                            </div>
+                            <div>
+                                <label style="color: #475569; font-size: 0.8rem; display: block; margin-bottom: 5px;">⏱️ ความถี่ในการแจ้งเตือน (นาที)</label>
+                                <input type="number" id="alertInterval" placeholder="เช่น 5" min="1" max="999" style="width:100%; padding: 10px; border-radius: 6px; border: 1px solid #cbd5e1; background: #ffffff; color: #1a1a2e;" />
+                            </div>
+                        </div>
+                        <p style="font-size: 0.7rem; color: #64748b; margin-top: 8px;">* ระบบจะหยุดส่งการแจ้งเตือนหลังจากครบจำนวนครั้งที่กำหนด หรือรอเวลาตามความถี่ที่ตั้งไว้</p>
+                    </div>
+
+                    <div class="alert-row-container" style="margin-top: 15px;">
+                        <label class="alert-enabled-wrapper" id="alertEnabledWrapper" style="background: #f8fafc; border: 1px solid #e2e8f0;">
+                            <input type="checkbox" id="devAlertEnabled" checked />
+                            <span class="alert-label" style="color: #0d2b1a;"><span class="alert-icon">🔔</span> เปิดใช้งานการแจ้งเตือน (Alert Enabled)</span>
+                        </label>
+                        <div class="button-group">
+                            <button onclick="resetDeviceForm()" class="btn-small-reset">↺ รีเซ็ตฟอร์ม</button>
+                            <button id="saveSensorBtn" onclick="saveDeviceWithThresholds()" class="save-btn" style="background: linear-gradient(135deg, #10b981, #059669);">💾 บันทึกข้อมูลเซนเซอร์</button>
+                        </div>
+                    </div>
+
+                    <div class="help-section" style="margin-top: 15px;">
+                        <details style="background: #f8fafc; padding: 10px; border-radius: 8px; border: 1px solid #e2e8f0; color: #475569;">
+                            <summary style="cursor: pointer; font-weight: bold; color: #2563eb; outline: none; list-style: none; display: flex; align-items: center; gap: 8px;">
+                                <span>💡</span> คลิกเพื่อแสดง/ซ่อน คำแนะนำการตั้งค่าอุปกรณ์
+                            </summary>
+                            <div class="help-content" style="margin-top: 10px; font-size: 0.8rem; line-height: 1.6; padding-left: 10px; border-top: 1px solid #e2e8f0; padding-top: 12px; color: #1a202c;">
+                                <p style="margin-bottom: 6px;">📌 <strong>ข้อกำหนด ID:</strong> ใช้ตัวอักษรภาษาอังกฤษ ตัวเลข และขีดล่าง (<code>_</code>) เท่านั้น ห้ามมีช่องว่าง</p>
+                                <p style="margin-bottom: 6px;">📊 <strong>การตั้งค่าระดับแจ้งเตือน:</strong> สามารถเพิ่มระดับได้ตามต้องการ และกำหนดช่วงค่า Min-Max ได้เอง</p>
+                                <p style="margin-bottom: 6px;">🔔 <strong>เงื่อนไขการแจ้งเตือน:</strong> ระบบจะแจ้งเตือนเมื่อค่าที่วัดได้อยู่ในระดับที่มีการติ๊กเลือก "แจ้งเตือน"</p>
+                                <p style="margin-bottom: 6px;">⚙️ <strong>Advanced Alert:</strong> ① ค่าวิกฤต (Threshold) ② อัตราการเปลี่ยนแปลง (Rate of Change)</p>
+                                <p style="margin-bottom: 6px; color: #2563eb;">🆕 <strong>รองรับค่าจริง:</strong> ไม่จำกัดแค่ 0-100% เช่น อุณหภูมิ (-10 ถึง 50°C), pH (0-14), ระดับน้ำ (0-999 cm)</p>
+                                <p style="margin-bottom: 6px; color: #92400e;">📐 <strong>โหมดการทำงาน:</strong> เลือกระหว่างแนวตั้ง (Vertical) สำหรับวัดระดับน้ำ และแนวนอน (Horizontal) สำหรับวัดระยะห่าง</p>
+                                <div class="tip-box" style="margin-top: 8px; padding: 8px 12px; background: #f1f5f9; border-radius: 4px; border-left: 3px solid #2563eb; font-size: 0.75rem; color: #475569;">
+                                    💡 <strong>เคล็ดลับ:</strong> ใช้ปุ่ม <span style="color: #2563eb;">"⚡ สร้างระดับอัตโนมัติ"</span> เพื่อสร้างค่าระดับตามจำนวนที่ต้องการ หรือใช้ <span style="color: #059669;">"🌊 River Mode"</span> สำหรับ Ultrasonic
+                                </div>
+                                <div style="margin-top: 8px; padding: 8px 12px; background: #f1f5f9; border-radius: 4px; border-left: 3px solid #2563eb; font-size: 0.75rem; color: #475569;">
+                                    🚀 <strong>คำนวณอัตโนมัติจากก้นบ่อและตลิ่ง:</strong> กรอก "ระยะติดตั้ง" และ "ระดับตลิ่ง" แล้วกดปุ่ม <span style="color: #2563eb;">"คำนวณ"</span> (ในส่วน Ultrasonic) เพื่อสร้างระดับการเตือนอัตโนมัติ
+                                </div>
+                            </div>
+                        </details>
+                    </div>
+                </div>
+
+                <div style="margin-top: 10px; margin-bottom: 10px;">
+                    <input type="text" id="searchSensor" onkeyup="filterSensorTable()" placeholder="🔍 ค้นหาเซนเซอร์..." style="padding: 8px 16px; border-radius: 8px; border: 1px solid #cbd5e1; background: #ffffff; color: #1a1a2e; width: 100%; max-width: 300px;" />
+                </div>
+
+                <div class="device-table-wrapper">
+                    <table class="device-table" id="sensor-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 8%;">🆔 ID</th>
+                                <th style="width: 13%;">📛 ชื่อจุดติดตั้ง</th>
+                                <th style="width: 10%;">🔍 ชนิด</th>
+                                <th style="width: 8%;">📏 หน่วย</th>
+                                <th style="width: 14%;">📊 ระดับการแจ้งเตือน</th>
+                                <th style="width: 10%;">⚠️ ค่าวิกฤต</th>
+                                <th style="width: 10%;">📈 อัตราเปลี่ยน</th>
+                                <th style="width: 8%;">⏱️ เวลา(นาที)</th>
+                                <th style="width: 8%;">🔢 จำกัดครั้ง</th>
+                                <th style="width: 8%;">⏳ ความถี่(นาที)</th>
+                                <th style="width: 13%;">⚙️ จัดการ</th>
+                            </tr>
+                        </thead>
+                        <tbody id="deviceTableBody"><tr><td colspan="11" style="text-align: center; padding: 20px; color:#64748b;">📥 กำลังโหลดข้อมูลเซนเซอร์...</td></tr></tbody>
+                    </table>
+                </div>
+
+                <div class="alert-history-header" style="margin-top: 20px;">
+                    <h4>📜 ประวัติการแจ้งเตือนของอุปกรณ์</h4>
+                    <span>(คลิกเลือกอุปกรณ์เพื่อดูประวัติ)</span>
+                </div>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px;">
+                    <select id="alertHistoryDeviceSelect" onchange="loadAlertHistory()" style="padding: 8px 16px; border-radius: 6px; border: 1px solid #cbd5e1; background: #ffffff; color: #1a1a2e; min-width: 200px;">
+                        <option value="">-- เลือกอุปกรณ์ --</option>
+                    </select>
+                    <button onclick="loadAlertHistory()" class="btn-small" style="background: #3b82f6; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer;">🔄 โหลดประวัติ</button>
+                </div>
+                <div id="alertHistoryContainer" style="background: #f8fafc; border-radius: 8px; padding: 15px; border: 1px solid #e2e8f0; min-height: 100px; margin-top: 10px;">
+                    <div style="text-align:center; padding: 20px; color:#64748b;">📭 เลือกอุปกรณ์เพื่อแสดงประวัติการแจ้งเตือน</div>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <!-- ============================================================
+    6.5 MODAL: BOARD WEATHER SETTINGS (ปรับปรุงแล้ว ✅)
+    ============================================================ -->
+    <div id="boardWeatherModal" class="modal-overlay" style="display: none;">
+        <div class="modal-content" style="max-width: 700px;">
+            <div class="modal-header">
+                <h2 id="boardWeatherTitle">🌤️ ตั้งค่าสภาพอากาศสำหรับบอร์ด</h2>
+                <button onclick="closeBoardWeatherSettings()" class="close-btn" aria-label="ปิด"></button>
+            </div>
+            <div style="padding: 0 4px;">
+                <div style="background: #f8fafc; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 15px;">
+                    <label style="display:block; font-size: 0.8rem; color:#475569; margin-bottom:5px;">🔍 ค้นหาสถานที่:</label>
+                    <div style="display: flex; gap: 8px; flex-direction: column;">
+                        <div style="display: flex; gap: 8px;">
+                            <input type="text" id="boardWeatherSearchInput" placeholder="พิมพ์ชื่ออำเภอ/จังหวัด" style="flex: 1; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; background: #ffffff; color: #1a1a2e;">
+                            <button onclick="searchBoardLocation()" style="background: #3b82f6; color:white; border:none; padding:10px 20px; border-radius:8px; cursor:pointer; font-weight:bold;">ค้นหา</button>
+                        </div>
+                        <button onclick="useGPSForBoardWeather(event)" style="background: linear-gradient(135deg, #059669, #10b981); color:white; border:none; padding:12px; border-radius:8px; cursor:pointer; font-weight:bold; display: flex; align-items:center; justify-content: center; gap: 8px;">
+                            📍 ใช้ตำแหน่งปัจจุบันจาก GPS (มือถือ)
+                        </button>
+                    </div>
+                    <div id="boardLocationResults" style="margin-top: 10px; display: none; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; max-height: 200px; overflow-y: auto;"></div>
+                </div>
+
+                <div style="background: #f0f7ff; padding: 15px; border-radius: 8px; border: 1px solid #b3d4fc; margin-bottom: 15px;">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                        <div>
+                            <span style="font-size: 0.75rem; color: #1a3a5f; text-transform: uppercase; font-weight: bold;">📍 สถานที่บันทึกปัจจุบัน:</span>
+                            <div id="boardCurrentWeatherLoc" style="font-size: 1rem; margin-top: 5px; color: #0d2b1a;">ยังไม่ได้ตั้งค่า</div>
+                        </div>
+                        <div id="boardManageWeatherBox" style="display:none;">
+                            <button onclick="deleteBoardWeatherLocation()" style="background:#ef4444; color:white; border:none; padding:4px 12px; border-radius:6px; cursor:pointer; font-size:0.7rem;">🗑️ ลบพิกัด</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ✅ ปรับปรุง: เพิ่ม PM2.5 และ Description -->
+                <div style="background: #f8fafc; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 15px;">
+                    <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-weight: bold; color: #0d2b1a; margin-bottom: 10px;">
+                        <input type="checkbox" id="boardAttachWeatherToReport" style="width:18px; height:18px; accent-color:#3b82f6;"> 
+                        ✅ แนบข้อมูลสภาพอากาศในรายงานอัตโนมัติ
+                    </label>
+                    <p style="font-size: 0.8rem; color:#475569; margin-bottom: 10px; border-top: 1px solid #e2e8f0; padding-top: 10px;">เลือกข้อมูลที่ต้องการให้แสดง:</p>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                        <label style="color: #475569; font-size: 0.85rem; cursor: pointer;">
+                            <input type="checkbox" class="board-weather-field" value="temp" checked> 🌡️ อุณหภูมิ
+                        </label>
+                        <label style="color: #475569; font-size: 0.85rem; cursor: pointer;">
+                            <input type="checkbox" class="board-weather-field" value="humidity" checked> 💧 ความชื้น
+                        </label>
+                        <label style="color: #475569; font-size: 0.85rem; cursor: pointer;">
+                            <input type="checkbox" class="board-weather-field" value="pm25" checked> 🌫️ PM 2.5
+                        </label>
+                        <label style="color: #475569; font-size: 0.85rem; cursor: pointer;">
+                            <input type="checkbox" class="board-weather-field" value="description"> ☁️ สภาพอากาศ
+                        </label>
+                        <label style="color: #475569; font-size: 0.85rem; cursor: pointer;">
+                            <input type="checkbox" class="board-weather-field" value="wind"> 🌬️ ลม
+                        </label>
+                        <label style="color: #475569; font-size: 0.85rem; cursor: pointer;">
+                            <input type="checkbox" class="board-weather-field" value="pressure"> ⏲️ ความกดอากาศ
+                        </label>
+                    </div>
+                </div>
+
+                <button onclick="saveBoardWeatherSettings()" class="save-btn" style="width:100%; background: linear-gradient(135deg, #10b981, #059669); color:white; padding:12px; font-weight:bold; border-radius:8px; border:none; cursor:pointer;">💾 บันทึกการตั้งค่าสภาพอากาศ</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================
+    7. MODAL: SETTINGS & BACKUP (ปรับปรุงแล้ว ✅)
+    ============================================================ -->
+    <div id="settingsModal" class="modal-overlay" style="display: none;">
+        <div class="modal-content" style="max-width: 900px;">
+            <div class="modal-header">
+                <h2>🛠️ ตั้งค่าระบบ &amp; สำรองข้อมูล</h2>
+                <button onclick="closeSettingsManager()" class="close-btn" aria-label="ปิด"></button>
+            </div>
+
+            <div class="user-management-form" style="margin-top: 20px;">
+                <h3>⏱️ ความถี่ในการจัดเก็บสถิติลง Firebase</h3>
+                <p style="font-size:0.85em; color:#475569; margin-bottom:10px;">* คำเตือน: หน้าเว็บต้องเปิดทิ้งไว้ ระบบถึงจะทำการบันทึกข้อมูลตามเวลาที่ตั้ง</p>
+                <div class="input-row" style="align-items: center;">
+                    <label style="color: #0d2b1a;">บันทึกทุกๆ : </label>
+                    <input type="number" id="logInterval" min="1" placeholder="จำนวนนาที" style="max-width: 150px;" />
+                    <label style="color: #0d2b1a;"> นาที</label>
+                    <button onclick="saveLogInterval()" class="save-btn">💾 บันทึกเวลา</button>
+                </div>
+            </div>
+
+            <div class="user-management-form" style="margin-top: 20px; border-top: 2px solid #e2e8f0; padding-top: 20px;">
+                <h3>📊 ตั้งค่าการบันทึกข้อมูลเซนเซอร์ (Auto-Log)</h3>
+                <p style="font-size:0.85em; color:#475569; margin-bottom:10px;">กำหนดความถี่และระยะเวลาการเก็บข้อมูลอัตโนมัติ</p>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 10px;">
+                    <label style="color: #475569;">เก็บข้อมูลนาน:</label>
+                    <input type="number" id="periodValue" placeholder="ระบุเลข" oninput="calculateAutoLogPreview()" style="width: 80px; padding: 8px; border-radius: 6px; border: 1px solid #cbd5e1; background: #ffffff; color: #1a1a2e;" />
+                    <select id="periodType" onchange="updateLoggingDisplay()" style="padding: 8px; border-radius: 6px; border: 1px solid #cbd5e1; background: #ffffff; color: #1a1a2e;">
+                        <option value="day">วัน (Day)</option>
+                        <option value="hour">ชั่วโมง (Hour)</option>
+                        <option value="minute">นาที (Minute)</option>
+                    </select>
+                </div>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 15px;">
+                    <label style="color: #475569;">บันทึกข้อมูล:</label>
+                    <input type="number" id="recordsPerPeriod" placeholder="ระบุจำนวนครั้ง" oninput="calculateAutoLogPreview()" style="width: 120px; padding: 8px; border-radius: 6px; border: 1px solid #cbd5e1; background: #ffffff; color: #1a1a2e;" />
+                    <span style="color: #475569;">ครั้งต่อ <span id="periodLabel" style="color: #1a3a5f; font-weight: bold;">วัน</span></span>
+                </div>
+                <div id="logPreviewContainer" style="margin-bottom: 15px;">
+                    <span style="color: #64748b; font-size: 0.8rem;">⚠️ กรุณากรอกข้อมูลให้ครบถ้วนเพื่อดูตัวอย่าง</span>
+                </div>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <button onclick="applyLoggingConfig()" class="save-btn" style="background: linear-gradient(135deg, #10b981, #059669); padding: 10px 20px; border: none; border-radius: 8px; color: white; cursor: pointer;">💾 บันทึกและเริ่มระบบบันทึกอัตโนมัติ</button>
+                    <button onclick="loadLoggingConfig()" class="btn-small" style="background: #475569; padding: 10px 20px; border: none; border-radius: 8px; color: white; cursor: pointer;">🔄 โหลดการตั้งค่าปัจจุบัน</button>
+                </div>
+            </div>
+
+            <div class="user-management-form" style="margin-top: 20px; border-top: 2px solid #e2e8f0; padding-top: 20px;">
+                <h3>🧹 จัดการลบข้อมูลประวัติ (Manual Cleanup)</h3>
+                <p style="font-size:0.85em; color:#475569; margin-bottom:10px;">เลือกช่วงเวลาที่ต้องการลบ หรือล้างข้อมูลทั้งหมด</p>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 10px;">
+                    <input type="datetime-local" id="deleteStart" title="ตั้งแต่เวลา" style="padding: 8px; border-radius: 6px; border: 1px solid #cbd5e1; background: #ffffff; color: #1a1a2e;" />
+                    <span style="color: #475569; display: flex; align-items: center;">ถึง</span>
+                    <input type="datetime-local" id="deleteEnd" title="ถึงเวลา" style="padding: 8px; border-radius: 6px; border: 1px solid #cbd5e1; background: #ffffff; color: #1a1a2e;" />
+                    <button onclick="manualDeleteByRange()" style="background: #ef4444; color: white; border: none; padding: 8px 16px; border-radius: 8px; cursor: pointer; transition: 0.2s;" onmouseover="this.style.background='#dc2626'" onmouseout="this.style.background='#ef4444'">🗑️ ลบตามช่วงเวลา</button>
+                </div>
+                <button onclick="manualDeleteAll()" style="background: #7f1d1d; color: white; border: none; padding: 10px 16px; border-radius: 8px; cursor: pointer; width: 100%; transition: 0.2s;" onmouseover="this.style.background='#991b1b'" onmouseout="this.style.background='#7f1d1d'">🔥 ล้างข้อมูลประวัติทั้งหมด</button>
+            </div>
+
+            <div class="user-management-form" style="margin-top: 20px; border-top: 2px solid #e2e8f0; padding-top: 20px;">
+                <h3>💬 ตั้งค่า Telegram &amp; ตารางส่งรายงานอัตโนมัติ</h3>
+                <div class="tele-settings-container" style="background: #f8fafc; padding: 15px; border-radius: 12px; border: 1px solid #e2e8f0;">
+                    <div style="display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; align-items: center;">
+                        <input type="text" id="teleBotToken" placeholder="Bot Token" style="flex: 2; min-width: 200px; padding: 10px; border-radius: 8px; background: #ffffff; color: #1a1a2e; border: 1px solid #cbd5e1;" />
+                        <label style="color: #0d6b2a; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 5px;">
+                            <input type="checkbox" id="teleEnabled" onchange="saveTelegramConfig()" /> ระบบทำงาน
+                        </label>
+                        <button onclick="saveTelegramConfig()" class="save-btn" style="background: #10b981; padding: 10px 20px;">💾 บันทึก Token</button>
+                    </div>
+                    <div style="background: #f0f7ff; padding: 15px; border-radius: 8px; border: 1px solid #3b82f6; margin-bottom: 15px;">
+                        <h4 style="color: #1a3a5f; margin-top: 0; margin-bottom: 10px;">📅 เพิ่มตารางส่งรายงานใหม่</h4>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px;">
+                            <div>
+                                <label style="font-size: 0.75rem; color: #475569;">ประเภทรายงาน</label>
+                                <select id="schedType" style="width:100%; padding: 8px; border-radius: 6px; background: #ffffff; color: #1a1a2e; border: 1px solid #cbd5e1;">
+                                    <option value="status">📊 สถานะฮาร์ดแวร์</option>
+                                    <option value="system">⚙️ สภาพการทำงาน</option>
+                                    <option value="summary">📈 สรุปวิเคราะห์ (Analytics)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label style="font-size: 0.75rem; color: #475569;">📌 หัวข้อรายงาน (Title)</label>
+                                <input type="text" id="schedTitle" placeholder="เช่น รายงานประจำวัน" style="width:100%; padding: 8px; border-radius: 6px; background: #ffffff; color: #1a1a2e; border: 1px solid #cbd5e1;" />
+                            </div>
+                            <div>
+                                <label style="font-size: 0.75rem; color: #475569;">จำนวนครั้ง/วัน</label>
+                                <input type="number" id="schedCount" value="1" min="1" max="24" style="width:100%; padding: 8px; border-radius: 6px; background: #ffffff; color: #1a1a2e; border: 1px solid #cbd5e1;" />
+                            </div>
+                            <div>
+                                <label style="font-size: 0.75rem; color: #475569;">เวลาเริ่ม (Start)</label>
+                                <input type="time" id="schedStart" value="08:00" style="width:100%; padding: 8px; border-radius: 6px; background: #ffffff; color: #1a1a2e; border: 1px solid #cbd5e1;" />
+                            </div>
+                            <div>
+                                <label style="font-size: 0.75rem; color: #475569;">เวลาสิ้นสุด (End)</label>
+                                <input type="time" id="schedEnd" value="20:00" style="width:100%; padding: 8px; border-radius: 6px; background: #ffffff; color: #1a1a2e; border: 1px solid #cbd5e1;" />
+                            </div>
+                            <div style="display: flex; align-items: flex-end;">
+                                <button onclick="addTelegramSchedule()" style="width:100%; background: #3b82f6; color: #fff; padding: 10px; border: none; border-radius: 6px; cursor: pointer;">➕ เพิ่มตาราง</button>
+                            </div>
+                        </div>
+                        <p style="font-size: 0.65rem; color: #64748b; margin-top: 8px;">* ระบบจะคำนวณช่วงเวลาการส่งให้โดยอัตโนมัติภายในช่วงเวลาที่กำหนด</p>
+                    </div>
+                    <div class="device-table-wrapper">
+                        <table class="device-table" style="font-size: 0.85rem;">
+                            <thead>
+                                <tr>
+                                    <th style="min-width: 150px;">📌 หัวข้อรายงาน</th>
+                                    <th style="min-width: 80px;">📊 จำนวน</th>
+                                    <th style="min-width: 120px;">⏱️ ช่วงเวลา</th>
+                                    <th style="min-width: 120px;">🔄 ส่งครั้งต่อไป</th>
+                                    <th style="min-width: 150px;">⚙️ จัดการ</th>
+                                </tr>
+                            </thead>
+                            <tbody id="teleScheduleTableBody">
+                                <tr><td colspan="5" style="text-align:center; padding:10px; color:#64748b;">📭 ยังไม่มีตารางเวลา</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div style="margin-top: 20px;">
+                    <h4 style="color: #0d2b1a; margin-bottom: 10px;">👥 รายชื่อผู้รับ</h4>
+                    <div class="input-row" style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 10px;">
+                        <input type="text" id="subName" placeholder="ชื่อผู้รับ" style="flex: 1; min-width: 150px; padding: 8px 12px; border-radius: 6px; border: 1px solid #cbd5e1; background: #ffffff; color: #1a1a2e;" />
+                        <input type="text" id="subChatId" placeholder="Chat ID" style="flex: 1; min-width: 150px; padding: 8px 12px; border-radius: 6px; border: 1px solid #cbd5e1; background: #ffffff; color: #1a1a2e;" />
+                        <button onclick="saveSubscriber()" class="save-btn" style="background: linear-gradient(135deg, #8b5cf6, #7c3aed); padding: 8px 16px;">➕ เพิ่ม</button>
+                    </div>
+                    <div style="overflow-x: auto;">
+                        <table class="user-table" style="width: 100%; min-width: 400px;">
+                            <thead><tr><th style="width: 30%;">ชื่อ</th><th style="width: 40%;">Chat ID</th><th style="width: 30%;">จัดการ</th></tr></thead>
+                            <tbody id="subTableBody"><tr><td colspan="3" style="text-align:center; padding: 20px; color:#64748b;">📭 กำลังโหลดรายชื่อ...</td></tr></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div style="margin-top: 20px;">
+                    <h4 style="color: #0d2b1a; margin-bottom: 10px;">📜 ประวัติการส่งล่าสุด</h4>
+                    <div style="overflow-x: auto;">
+                        <table class="user-table" style="width: 100%; min-width: 400px;">
+                            <thead>
+                                <tr>
+                                    <th style="width: 20%;">เวลา</th>
+                                    <th style="width: 20%;">ถึง</th>
+                                    <th style="width: 20%;">ผู้ส่ง</th>
+                                    <th style="width: 15%;">สถานะ</th>
+                                    <th style="width: 25%;">
+                                        <button onclick="confirmClearTelegramHistory()" class="danger" style="background:#d32f2f; padding:4px 8px; font-size:0.7rem; border:none; border-radius:4px; color:white; cursor:pointer;">🗑️ ล้างทั้งหมด</button>
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody id="historyTableBody"><tr><td colspan="5" style="text-align:center; padding: 20px; color:#64748b;">📭 ยังไม่มีประวัติการส่ง</td></tr></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="user-management-form" style="margin-top: 20px; border-top: 2px solid #e2e8f0; padding-top: 20px;">
+                <h3 style="display: flex; align-items: center; gap: 10px; color: #0d2b1a;">💾 ระบบสำรองและกู้คืนข้อมูลทั้งหมด (Full System Backup)</h3>
+                <p style="font-size:0.85em; color:#b91c1c; margin-bottom:10px; font-weight: bold;">
+                    ⚠️ แนะนำให้สำรองข้อมูลเป็นประจำ ไฟล์นี้จะรวม (การตั้งค่าเซนเซอร์, บัญชีผู้ใช้, ระบบแจ้งเตือน และประวัติทั้งหมด)
+                </p>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 15px;">
+                    <button onclick="exportDataOffline()" style="background: linear-gradient(135deg, #059669, #10b981); padding: 15px; border: none; border-radius: 12px; color: white; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                        <span style="font-size: 1.5rem;">📥</span>
+                        <div style="font-weight: bold;">สร้างไฟล์สำรองข้อมูล</div>
+                        <div style="font-size: 0.7rem; opacity: 0.9;">Export ทุกอย่างเป็นไฟล์ .json</div>
+                    </button>
+                    <div style="position: relative;">
+                        <label for="importFile" style="background: linear-gradient(135deg, #d97706, #f59e0b); padding: 15px; border-radius: 12px; color: white; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); height: 100%; box-sizing: border-box;">
+                            <span style="font-size: 1.5rem;">📤</span>
+                            <div style="font-weight: bold;">กู้คืนข้อมูลจากไฟล์</div>
+                            <div style="font-size: 0.7rem; opacity: 0.9;">Restore ข้อมูลกลับสู่ Firebase</div>
+                        </label>
+                        <input type="file" id="importFile" accept=".json" style="display: none;" onchange="importDataOffline(event)" />
+                    </div>
+                </div>
+                <div style="margin-top: 12px; padding: 10px; background: #fffbeb; border: 1px solid #fef3c7; border-radius: 8px; font-size: 0.75rem; color: #92400e;">
+                    💡 <b>คำแนะนำ:</b> เมื่อทำการกู้คืน (Restore) ข้อมูลเก่าจะถูกแทนที่ด้วยข้อมูลในไฟล์ทันที โปรดระมัดระวังในการใช้งาน
+                </div>
+            </div>
+
+            <!-- ✅ ปรับปรุง: Weather Settings ใน Settings Modal -->
+            <div class="user-management-form" style="margin-top: 20px; border-top: 2px solid #e2e8f0; padding-top: 20px;">
+                <h3 style="display: flex; align-items: center; gap: 10px; color: #0d2b1a;">🌤️ ตั้งค่าข้อมูลสภาพอากาศ (Weather)</h3>
+                <p style="font-size:0.85em; color:#475569; margin-bottom:10px;">ระบุสถานที่เพื่อแสดงผลบนหน้าจอและแนบไปกับรายงานอัตโนมัติ</p>
+
+                <div style="background: #f8fafc; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 15px;">
+                    <label style="display:block; font-size: 0.8rem; color:#475569; margin-bottom:5px;">🔍 ค้นหาสถานที่ใหม่:</label>
+                    <div style="display: flex; gap: 8px;">
+                        <input type="text" id="weatherSearchInput" placeholder="ชื่ออำเภอ หรือจังหวัด (ภาษาอังกฤษจะแม่นยำกว่า)" style="flex: 1; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; background: #ffffff; color: #1a1a2e;">
+                        <button onclick="searchLocation()" style="background: #3b82f6; color:white; border:none; padding:10px 20px; border-radius:8px; cursor:pointer; font-weight:bold;">ค้นหา</button>
+                    </div>
+                    <div id="locationResults" style="margin-top: 10px; display: none; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; max-height: 200px; overflow-y: auto; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);"></div>
+                </div>
+
+                <div style="background: #ecfdf5; padding: 15px; border-radius: 8px; border: 1px solid #a7f3d0; margin-bottom: 15px;">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                        <div>
+                            <span style="font-size: 0.75rem; color: #047857; text-transform: uppercase; font-weight: bold;">📍 สถานที่บันทึกปัจจุบัน:</span>
+                            <div id="currentWeatherLoc" style="font-size: 1.1rem; margin-top: 5px; color: #0d2b1a;">กำลังโหลด...</div>
+                        </div>
+                        <div id="manageWeatherBox" style="display:none;">
+                            <button onclick="deleteWeatherLocation()" style="background:#ef4444; color:white; border:none; padding:5px 12px; border-radius:6px; cursor:pointer; font-size:0.75rem;">🗑️ ลบพิกัด</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ✅ ปรับปรุง: เพิ่ม PM2.5 -->
+                <div style="background: #ffffff; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0;">
+                    <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-weight: bold; color: #0d2b1a; margin-bottom: 15px;">
+                        <input type="checkbox" id="attachWeatherToReport" style="width:18px; height:18px;"> 
+                        ✅ แนบข้อมูลสภาพอากาศในรายงานอัตโนมัติ
+                    </label>
+                    <p style="font-size: 0.8rem; color:#64748b; margin-bottom: 10px; border-top: 1px solid #e2e8f0; padding-top: 10px;">เลือกข้อมูลที่ต้องการให้แสดง:</p>
+                    <div id="weatherFieldSelector" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px;">
+                        <label style="color: #0d2b1a;">
+                            <input type="checkbox" class="weather-field" value="temp"> 🌡️ อุณหภูมิ
+                        </label>
+                        <label style="color: #0d2b1a;">
+                            <input type="checkbox" class="weather-field" value="humidity"> 💧 ความชื้น
+                        </label>
+                        <label style="color: #0d2b1a;">
+                            <input type="checkbox" class="weather-field" value="pm25"> 🌫️ PM 2.5
+                        </label>
+                        <label style="color: #0d2b1a;">
+                            <input type="checkbox" class="weather-field" value="description"> ☁️ สภาพอากาศ
+                        </label>
+                        <label style="color: #0d2b1a;">
+                            <input type="checkbox" class="weather-field" value="wind"> 🌬️ ลม
+                        </label>
+                        <label style="color: #0d2b1a;">
+                            <input type="checkbox" class="weather-field" value="pressure"> ⏲️ ความกดอากาศ
+                        </label>
+                    </div>
+                    <button onclick="saveWeatherPref()" class="save-btn" style="width:100%; background: #0d6b2a; color:white; padding:12px; font-weight:bold; border-radius:8px;">💾 บันทึกการตั้งค่าสภาพอากาศ</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================
+    8. MODAL: GLOBAL ALERT SETTINGS
+    ============================================================ -->
+    <div id="globalAlertModal" class="modal-overlay" style="display: none;">
+        <div class="modal-content" style="max-width: 700px;">
+            <div class="modal-header">
+                <h2>⚙️ จัดการการแจ้งเตือนภาพรวม</h2>
+                <button onclick="closeGlobalAlertSettings()" class="close-btn" aria-label="ปิด"></button>
+            </div>
+            <div style="padding: 0;">
+                <div class="setting-section">
+                    <h4>🔕 สถานะการแจ้งเตือน (Kill Switch)</h4>
+                    <label>
+                        <input type="checkbox" id="globalAlertMute" onchange="toggleGlobalMute(this.checked)" />
+                        <span id="globalMuteStatus" class="status-text">🔔 แจ้งเตือนปกติ</span>
+                    </label>
+                    <p class="help-text">* หากติ๊กเลือก ระบบจะปิดการแจ้งเตือนทุกประเภททันที แต่ยังบันทึกข้อมูลตามปกติ</p>
+                </div>
+                <div class="setting-section">
+                    <h4>📊 ตั้งค่า Limit/Interval (อุปกรณ์ใหม่)</h4>
+                    <p style="color: #475569; font-size: 0.85rem; margin-bottom: 15px;">การตั้งค่านี้จะใช้เป็นค่าเริ่มต้นสำหรับอุปกรณ์ที่เพิ่มใหม่เท่านั้น</p>
+                    <div class="setting-grid">
+                        <div class="field-group">
+                            <label>📊 จำกัดจำนวนครั้ง (Limit)</label>
+                            <input type="number" id="globalAlertLimit" placeholder="เช่น 3" min="1" max="99" />
+                            <span class="hint-text">ค่าเริ่มต้น 3 ครั้ง</span>
+                        </div>
+                        <div class="field-group">
+                            <label>⏱️ ความถี่ (นาที)</label>
+                            <input type="number" id="globalAlertInterval" placeholder="เช่น 5" min="1" max="999" />
+                            <span class="hint-text">ค่าเริ่มต้น 5 นาที</span>
+                        </div>
+                    </div>
+                    <button onclick="applyGlobalAlertSettings()" class="save-btn">💾 บันทึกค่าเริ่มต้นและปรับใช้กับทั้งหมด</button>
+                </div>
+                <div class="device-list-box">
+                    <h4>📋 อุปกรณ์ที่จะได้รับผล (เฉพาะอุปกรณ์ที่เปิดใช้งาน)</h4>
+                    <div class="device-list" id="globalAlertDeviceList">
+                        <span class="empty-text">กำลังโหลดรายการอุปกรณ์...</span>
+                    </div>
+                    <p class="note-text">* การเปลี่ยนแปลงจะใช้กับทุกอุปกรณ์ในรายการด้านบน</p>
+                </div>
+                <div id="globalAlertResult" class="result-box"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================
+    9. MODAL: CLEANUP MANAGER
+    ============================================================ -->
+    <div id="cleanupModal" class="modal-overlay" style="display: none;">
+        <div class="modal-content" style="max-width: 900px; max-height: 90vh; display: flex; flex-direction: column;">
+            <div class="modal-header">
+                <h2 style="margin: 0; font-size: 1.25rem;">🧹 ระบบจัดการความสะอาด (Cleanup Manager)</h2>
+                <button onclick="closeCleanupModal()" class="close-btn" aria-label="ปิด"></button>
+            </div>
+            <div id="cleanupStats" style="padding: 10px 16px; background: #f8fafc; border-radius: 8px; margin-bottom: 12px; display: flex; gap: 20px; flex-wrap: wrap; border: 1px solid #e2e8f0;">
+                <span style="color: #475569; font-size: 0.85rem;">📊 <span id="cleanupTotalCount">0</span> รายการทั้งหมด</span>
+                <span style="color: #0d6b2a; font-size: 0.85rem;">✅ <span id="cleanupEnabledCount">0</span> รายการที่เปิดใช้งาน</span>
+                <span style="color: #b91c1c; font-size: 0.85rem;">❌ <span id="cleanupDisabledCount">0</span> รายการที่ปิดใช้งาน</span>
+                <span style="color: #1a3a5f; font-size: 0.85rem;">☑️ <span id="cleanupSelectedCount">0</span> รายการที่เลือก</span>
+            </div>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; padding: 0 4px;">
+                <div style="flex: 1; min-width: 150px;">
+                    <input type="text" id="cleanupSearchInput" onkeyup="filterCleanupTable()" placeholder="🔍 ค้นหา ID หรือชื่อ..." style="width: 100%; padding: 8px 12px; border-radius: 6px; border: 1px solid #cbd5e1; background: #ffffff; color: #1a1a2e;" />
+                </div>
+                <select id="cleanupTypeFilter" onchange="filterCleanupTable()" style="padding: 8px 12px; border-radius: 6px; border: 1px solid #cbd5e1; background: #ffffff; color: #1a1a2e;">
+                    <option value="all">📋 ทุกประเภท</option>
+                    <option value="board">🔌 บอร์ด</option>
+                    <option value="sensor">🌱 เซนเซอร์</option>
+                </select>
+                <select id="cleanupStatusFilter" onchange="filterCleanupTable()" style="padding: 8px 12px; border-radius: 6px; border: 1px solid #cbd5e1; background: #ffffff; color: #1a1a2e;">
+                    <option value="all">📊 ทุกสถานะ</option>
+                    <option value="enabled">✅ เปิดใช้งาน</option>
+                    <option value="disabled">❌ ปิดใช้งาน</option>
+                </select>
+                <div style="display: flex; gap: 6px;">
+                    <button onclick="toggleAllCleanupCheckboxes(true)" style="background: #3b82f6; color: white; border: none; padding: 8px 14px; border-radius: 6px; cursor: pointer; font-size: 0.8rem;">☑️ เลือกทั้งหมด</button>
+                    <button onclick="toggleAllCleanupCheckboxes(false)" style="background: #64748b; color: white; border: none; padding: 8px 14px; border-radius: 6px; cursor: pointer; font-size: 0.8rem;">☐ ยกเลิกทั้งหมด</button>
+                </div>
+            </div>
+            <div style="flex: 1; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 8px; min-height: 200px;">
+                <table class="device-table" style="width: 100%; border-collapse: collapse;">
+                    <thead style="position: sticky; top: 0; background: #f8fafc; z-index: 1;">
+                        <tr>
+                            <th style="width: 40px; text-align: center; padding: 8px 4px;">
+                                <input type="checkbox" id="cleanupSelectAll" onchange="toggleAllCleanupCheckboxes(this.checked)" style="width: 17px; height: 17px; cursor: pointer; accent-color: #3b82f6;">
+                            </th>
+                            <th style="text-align: left; padding: 8px 12px;">🆔 ID</th>
+                            <th style="text-align: left; padding: 8px 12px;">📛 ชื่อ</th>
+                            <th style="text-align: left; padding: 8px 12px;">🔍 ประเภท</th>
+                            <th style="text-align: center; padding: 8px 12px;">📊 สถานะ</th>
+                            <th style="text-align: center; padding: 8px 12px;">🔌 บอร์ดที่เชื่อมต่อ</th>
+                        </tr>
+                    </thead>
+                    <tbody id="cleanupTableBody">
+                        <tr><td colspan="6" style="text-align: center; padding: 40px; color: #64748b;">⏳ กำลังโหลดข้อมูล...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div style="display: flex; gap: 10px; margin-top: 15px; padding-top: 15px; border-top: 1px solid #e2e8f0; flex-wrap: wrap; justify-content: space-between; align-items: center;">
+                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                    <button onclick="selectCleanupByStatus('enabled')" style="background: #ecfdf5; color: #0d6b2a; border: 1px solid #0d6b2a; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 0.8rem;">✅ เลือกที่เปิดใช้งาน</button>
+                    <button onclick="selectCleanupByStatus('disabled')" style="background: #fef2f2; color: #b91c1c; border: 1px solid #b91c1c; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 0.8rem;">❌ เลือกที่ปิดใช้งาน</button>
+                    <button onclick="selectCleanupByStatus('board')" style="background: #eff6ff; color: #1a3a5f; border: 1px solid #1a3a5f; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 0.8rem;">🔌 เลือกเฉพาะบอร์ด</button>
+                    <button onclick="selectCleanupByStatus('sensor')" style="background: #ecfdf5; color: #047857; border: 1px solid #047857; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 0.8rem;">🌱 เลือกเฉพาะเซนเซอร์</button>
+                </div>
+                <div style="display: flex; gap: 8px;">
+                    <button onclick="executeSelectedCleanup()" style="background: linear-gradient(135deg, #dc2626, #b91c1c); color: white; padding: 10px 24px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; box-shadow: 0 4px 6px rgba(220, 38, 38, 0.3);">🗑️ ลบที่เลือก (<span id="cleanupDeleteCount">0</span>)</button>
+                    <button onclick="closeCleanupModal()" style="background: #475569; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer;">❌ ยกเลิก</button>
+                </div>
+            </div>
+            <div style="margin-top: 10px; padding: 8px 12px; background: #f8fafc; border-radius: 6px; border-left: 3px solid #f59e0b; font-size: 0.7rem; color: #475569;">
+                💡 <b>คำแนะนำ:</b> ใช้ช่อง ☑️ เพื่อเลือกรายการที่ต้องการลบ | สามารถกรองค้นหาตาม ID/ชื่อ | กด "เลือกทั้งหมด" หรือ "ยกเลิกทั้งหมด" เพื่อจัดการทีละกลุ่ม | <span style="color: #b91c1c;">⚠️ การลบไม่สามารถกู้คืนได้!</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================
+    FOOTER
+    ============================================================ -->
+    <footer>
+        <div class="footer-content">
+            <span class="copyright-icon">©</span>
+            <span class="copyright-text">
+                <span class="highlight">kltsscoke</span>
+            </span>
+            <span class="footer-divider"></span>
+            <span class="copyright-text">All Rights Reserved.</span>
+            <span class="footer-divider"></span>
+            <span class="footer-version">v2.5</span>
+        </div>
+    </footer>
+
+    <!-- ============================================================
+    SCRIPT LOADING - FIXED ORDER
+    ============================================================ -->
+    <script src="core.js" defer></script>
+    <script src="sensors.js" defer></script>
+    <script src="telegram.js" defer></script>
+    <script src="storage-monitor.js" defer></script>
+    <script src="main.js" defer></script>
+
+    <!-- ============================================================
+    WEATHER SETTINGS JAVASCRIPT (เพิ่มเติม)
+    ============================================================ -->
+    <script>
+        // ============================================================
+        // WEATHER SETTINGS - รองรับทั้ง board และ global
+        // ============================================================
+
+        /**
+         * บันทึกการตั้งค่าสภาพอากาศ (Global - ใช้ใน Settings Modal)
+         */
+        function saveWeatherPref() {
+            const fields = document.querySelectorAll('.weather-field:checked');
+            const selected = Array.from(fields).map(cb => cb.value);
+
+            localStorage.setItem('weatherFields', JSON.stringify(selected));
+
+            const attach = document.getElementById('attachWeatherToReport');
+            if (attach) {
+                localStorage.setItem('attachWeatherToReport', attach.checked ? 'true' : 'false');
+            }
+
+            showToast('✅ บันทึกการตั้งค่าสภาพอากาศเรียบร้อยแล้ว');
+        }
+
+        /**
+         * โหลดการตั้งค่าสภาพอากาศ (Global)
+         */
+        function loadWeatherPref() {
+            const saved = localStorage.getItem('weatherFields');
+            if (saved) {
+                try {
+                    const fields = JSON.parse(saved);
+                    document.querySelectorAll('.weather-field').forEach(cb => {
+                        cb.checked = fields.includes(cb.value);
+                    });
+                } catch (e) {}
+            }
+
+            const attach = localStorage.getItem('attachWeatherToReport');
+            if (attach !== null) {
+                const el = document.getElementById('attachWeatherToReport');
+                if (el) el.checked = attach === 'true';
+            }
+        }
+
+        /**
+         * บันทึกการตั้งค่าสภาพอากาศสำหรับบอร์ด (Board-specific)
+         */
+        function saveBoardWeatherSettings() {
+            const fields = document.querySelectorAll('.board-weather-field:checked');
+            const selected = Array.from(fields).map(cb => cb.value);
+
+            localStorage.setItem('boardWeatherFields', JSON.stringify(selected));
+
+            const attach = document.getElementById('boardAttachWeatherToReport');
+            if (attach) {
+                localStorage.setItem('boardAttachWeatherToReport', attach.checked ? 'true' : 'false');
+            }
+
+            showToast('✅ บันทึกการตั้งค่าสภาพอากาศสำหรับบอร์ดเรียบร้อยแล้ว');
+            closeBoardWeatherSettings();
+        }
+
+        /**
+         * โหลดการตั้งค่าสภาพอากาศสำหรับบอร์ด
+         */
+        function loadBoardWeatherPref() {
+            const saved = localStorage.getItem('boardWeatherFields');
+            if (saved) {
+                try {
+                    const fields = JSON.parse(saved);
+                    document.querySelectorAll('.board-weather-field').forEach(cb => {
+                        cb.checked = fields.includes(cb.value);
+                    });
+                } catch (e) {}
+            }
+
+            const attach = localStorage.getItem('boardAttachWeatherToReport');
+            if (attach !== null) {
+                const el = document.getElementById('boardAttachWeatherToReport');
+                if (el) el.checked = attach === 'true';
+            }
+        }
+
+        /**
+         * ฟังก์ชันดึงค่าสภาพอากาศที่เลือก (ใช้ในรายงาน)
+         */
+        function getSelectedWeatherFields(type) {
+            type = type || 'global';
+            const prefix = type === 'board' ? 'board' : '';
+            const key = prefix ? 'boardWeatherFields' : 'weatherFields';
+            const saved = localStorage.getItem(key);
+
+            if (saved) {
+                try {
+                    return JSON.parse(saved);
+                } catch (e) {
+                    return ['temp', 'humidity', 'description'];
+                }
+            }
+            return ['temp', 'humidity', 'description'];
+        }
+
+        /**
+         * ตรวจสอบว่าแนบสภาพอากาศในรายงานหรือไม่
+         */
+        function isWeatherAttachedToReport(type) {
+            type = type || 'global';
+            const key = type === 'board' ? 'boardAttachWeatherToReport' : 'attachWeatherToReport';
+            const val = localStorage.getItem(key);
+            return val === 'true';
+        }
+
+        // ============================================================
+        // TOAST NOTIFICATION
+        // ============================================================
+        function showToast(message, duration) {
+            duration = duration || 3000;
+            const old = document.querySelector('.custom-toast');
+            if (old) old.remove();
+
+            const toast = document.createElement('div');
+            toast.className = 'custom-toast';
+            toast.style.cssText = `
+                    position: fixed;
+                    bottom: 20px;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    background: #0d2b1a;
+                    color: white;
+                    padding: 12px 24px;
+                    border-radius: 12px;
+                    font-weight: 600;
+                    z-index: 99999;
+                    box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+                    animation: slideUp 0.3s ease;
+                    max-width: 90%;
+                    text-align: center;
+                `;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateX(-50%) translateY(20px)';
+                toast.style.transition = 'all 0.3s ease';
+                setTimeout(() => toast.remove(), 300);
+            }, duration);
+        }
+
+        // เพิ่ม CSS animation ถ้ายังไม่มี
+        if (!document.querySelector('#toast-style')) {
+            const style = document.createElement('style');
+            style.id = 'toast-style';
+            style.textContent = `
+                    @keyframes slideUp {
+                        from { opacity: 0; transform: translateX(-50%) translateY(20px); }
+                        to { opacity: 1; transform: translateX(-50%) translateY(0); }
+                    }
+                `;
+            document.head.appendChild(style);
+        }
+
+        // โหลดการตั้งค่าเมื่อ DOM พร้อม
+        document.addEventListener('DOMContentLoaded', function() {
+            loadWeatherPref();
+            loadBoardWeatherPref();
+            console.log('🌤️ Weather settings loaded');
+        });
+    </script>
+
+</body>
+</html>
