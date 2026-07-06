@@ -4429,6 +4429,7 @@ async function checkLevelAlert(sensorId, value, config) {
     
     const levels = config.levels;
     let matchedLevel = null;
+    let levelKey = '';
     
     // ✅ กรณี levels เป็น Array (แบบใหม่)
     if (Array.isArray(levels) && levels.length > 0) {
@@ -4437,6 +4438,7 @@ async function checkLevelAlert(sensorId, value, config) {
             const max = parseFloat(level.max);
             if (!isNaN(min) && !isNaN(max) && value >= min && value <= max) {
                 matchedLevel = level;
+                levelKey = `level_${levels.indexOf(level)}`;
                 break;
             }
         }
@@ -4451,6 +4453,7 @@ async function checkLevelAlert(sensorId, value, config) {
                 const max = parseFloat(level.max);
                 if (!isNaN(min) && !isNaN(max) && value >= min && value <= max) {
                     matchedLevel = { ...level, key: key };
+                    levelKey = key;
                     break;
                 }
             }
@@ -4461,12 +4464,135 @@ async function checkLevelAlert(sensorId, value, config) {
     if (matchedLevel && matchedLevel.alert === true) {
         const levelLabel = matchedLevel.label || 'ไม่ระบุ';
         const unit = config.unit || '';
-        return `⚠️ ระดับ ${levelLabel}: ค่า ${value.toFixed(2)} ${unit} อยู่ในเกณฑ์แจ้งเตือน`;
+        
+        // ✅ สร้างข้อความแจ้งเตือนแบบละเอียด
+        let detailMsg = `⚠️ ระดับ ${levelLabel}: ค่า ${value.toFixed(2)} ${unit} อยู่ในเกณฑ์แจ้งเตือน`;
+        
+        // ✅ เพิ่มข้อมูลเพิ่มเติมตามประเภทเซนเซอร์
+        if (config.type === 'ultrasonic' && config.installHeight) {
+            const installHeight = parseFloat(config.installHeight);
+            const bankHeight = parseFloat(config.bankHeight) || 0;
+            if (!isNaN(installHeight)) {
+                const rawVal = value;
+                const waterLevel = Math.max(0, installHeight - rawVal);
+                const percent = bankHeight > 0 ? (waterLevel / bankHeight) * 100 : 0;
+                const isFlooding = waterLevel >= bankHeight && bankHeight > 0;
+                
+                detailMsg += `\n   • ระดับน้ำจริง: ${waterLevel.toFixed(2)} ${unit}`;
+                if (bankHeight > 0) {
+                    detailMsg += `\n   • % ของตลิ่ง: ${percent.toFixed(0)}%`;
+                    if (isFlooding) {
+                        const overAmount = (waterLevel - bankHeight).toFixed(2);
+                        detailMsg += `\n   • 🌊 น้ำล้นตลิ่ง! สูงกว่า ${overAmount} ${unit}`;
+                        // ✅ ✅ ✅ เพิ่มข้อความแนะนำการจัดการน้ำท่วม ✅ ✅ ✅
+                        detailMsg += `\n   • 🚨 ต้องระบายน้ำท่วม! (น้ำเกินระดับตลิ่ง ${overAmount} ${unit})`;
+                        detailMsg += `\n   • 💡 คำแนะนำ: เร่งระบายน้ำทิ้งหรือเปิดประตูระบายน้ำ`;
+                    }
+                }
+            }
+        }
+        
+        if (config.type === 'soil') {
+            const num = parseFloat(value);
+            let soilStatus = "";
+            let soilAdvice = "";
+            if (num < 20) {
+                soilStatus = "🌵 แห้งมาก";
+                soilAdvice = "💧 ควรรดน้ำทันที";
+            } else if (num < 40) {
+                soilStatus = "🌿 แห้ง";
+                soilAdvice = "💧 ควรให้น้ำเพิ่ม";
+            } else if (num < 60) {
+                soilStatus = "🌱 พอดี";
+                soilAdvice = "✅ สภาพเหมาะสม";
+            } else if (num < 80) {
+                soilStatus = "🌳 ชื้น";
+                soilAdvice = "✅ น้ำเพียงพอ";
+            } else {
+                soilStatus = "💧 ชื้นมาก";
+                soilAdvice = "⚠️ ควรลดการให้น้ำ";
+            }
+            detailMsg += `\n   • สภาพดิน: ${soilStatus}`;
+            if (soilAdvice) detailMsg += `\n   • 💡 ${soilAdvice}`;
+        }
+        
+        if (config.type === 'temp') {
+            const num = parseFloat(value);
+            let tempStatus = "";
+            let tempAdvice = "";
+            if (num < 10) {
+                tempStatus = "❄️ หนาวจัด";
+                tempAdvice = "🔥 ควรเพิ่มความร้อน";
+            } else if (num < 20) {
+                tempStatus = "🥶 หนาว";
+                tempAdvice = "🔥 ควรเพิ่มความร้อนเล็กน้อย";
+            } else if (num < 30) {
+                tempStatus = "😊 ปกติ";
+                tempAdvice = "✅ อุณหภูมิเหมาะสม";
+            } else if (num < 40) {
+                tempStatus = "🥵 ร้อน";
+                tempAdvice = "💨 ควรระบายอากาศ";
+            } else {
+                tempStatus = "🔥 ร้อนจัด";
+                tempAdvice = "🚨 ระบายอากาศทันที! เสี่ยงอันตราย";
+            }
+            detailMsg += `\n   • สภาพอากาศ: ${tempStatus}`;
+            if (tempAdvice) detailMsg += `\n   • 💡 ${tempAdvice}`;
+        }
+        
+        if (config.type === 'rain') {
+            const num = parseFloat(value);
+            let rainStatus = "";
+            let rainAdvice = "";
+            if (num < 1) {
+                rainStatus = "☀️ ไม่มีฝน";
+                rainAdvice = "✅ สภาพปกติ";
+            } else if (num < 5) {
+                rainStatus = "🌤️ ฝนเล็กน้อย";
+                rainAdvice = "✅ ไม่ต้องกังวล";
+            } else if (num < 20) {
+                rainStatus = "🌧️ ฝนปานกลาง";
+                rainAdvice = "⚠️ เริ่มสังเกตการณ์";
+            } else if (num < 50) {
+                rainStatus = "🌧️ ฝนหนัก";
+                rainAdvice = "⚠️ ควรเตรียมรับมือน้ำท่วม";
+            } else {
+                rainStatus = "⛈️ ฝนหนักมาก";
+                rainAdvice = "🚨 เสี่ยงน้ำท่วม! ควรเตรียมการอพยพ";
+            }
+            detailMsg += `\n   • สถานะฝน: ${rainStatus}`;
+            if (rainAdvice) detailMsg += `\n   • 💡 ${rainAdvice}`;
+        }
+        
+        if (config.type === 'ph') {
+            const num = parseFloat(value);
+            let phStatus = "";
+            let phAdvice = "";
+            if (num < 4) {
+                phStatus = "🧪 กรดจัด";
+                phAdvice = "⚠️ ควรปรับเพิ่ม pH";
+            } else if (num < 6) {
+                phStatus = "🧪 กรดอ่อน";
+                phAdvice = "⚠️ ควรปรับเพิ่ม pH เล็กน้อย";
+            } else if (num <= 8) {
+                phStatus = "🧪 เป็นกลาง";
+                phAdvice = "✅ pH เหมาะสม";
+            } else if (num <= 10) {
+                phStatus = "🧪 ด่างอ่อน";
+                phAdvice = "⚠️ ควรปรับลด pH เล็กน้อย";
+            } else {
+                phStatus = "🧪 ด่างจัด";
+                phAdvice = "⚠️ ควรปรับลด pH";
+            }
+            detailMsg += `\n   • สถานะ pH: ${phStatus}`;
+            if (phAdvice) detailMsg += `\n   • 💡 ${phAdvice}`;
+        }
+        
+        return detailMsg;
     }
     
     return null;
 }
-
 // ============================================================
 //  getHistoryFromFirebase - ดึงประวัติข้อมูลจาก Firebase
 //  ใช้ใน checkAllAlertConditions สำหรับตรวจสอบ Rate of Change
@@ -4569,23 +4695,287 @@ async function sendUnifiedAlert(sensorId, config, alertMessages) {
         return false;
     }
     
-    // ✅ สร้างข้อความ
-    const alertText = alertMessages.join('\n');
-    const title = `🚨 แจ้งเตือน: ${config.name || sensorId}`;
-    const body = `
-🚨 <b>แจ้งเตือนจากเซนเซอร์</b>
+    // ============================================================
+    //  ✅ สร้างข้อความแจ้งเตือนจากรายละเอียดการ์ด
+    // ============================================================
+    const value = currentSensorValues[sensorId];
+    const unit = config.unit || '';
+    
+    // ✅ ตรวจสอบและสร้างรายละเอียดเพิ่มเติมตามประเภทเซนเซอร์
+    let detailMessage = '';
+    let statusLabel = '';
+    let statusColor = '';
+    
+    // ✅ ตรวจสอบสถานะระดับ (ใช้ Water Level สำหรับ Ultrasonic)
+    let checkValue = value;
+    let displayUnit = unit;
+    
+    // ✅ ถ้าเป็น Ultrasonic และมี installHeight ให้ใช้ Water Level
+    if (config.type === 'ultrasonic' && config.installHeight) {
+        const installHeight = parseFloat(config.installHeight);
+        if (!isNaN(installHeight) && !isNaN(value)) {
+            const waterLevel = Math.max(0, installHeight - value);
+            checkValue = waterLevel;
+            displayUnit = unit || 'cm';
+        }
+    }
+    
+    if (config.levels && Array.isArray(config.levels)) {
+        for (const level of config.levels) {
+            const min = parseFloat(level.min);
+            const max = parseFloat(level.max);
+            if (!isNaN(min) && !isNaN(max) && checkValue >= min && checkValue <= max) {
+                statusLabel = level.label || 'ไม่ระบุ';
+                statusColor = level.color || '#94a3b8';
+                if (level.alert) {
+                    detailMessage += `⚠️ ระดับ: ${statusLabel} (${checkValue.toFixed(2)} ${displayUnit})\n`;
+                } else {
+                    detailMessage += `📊 ระดับ: ${statusLabel} (${checkValue.toFixed(2)} ${displayUnit})\n`;
+                }
+                break;
+            }
+        }
+    }
+    
+    // ✅ กรณี Ultrasonic - เพิ่มรายละเอียดระดับน้ำ + คำแนะนำ
+    if (config.type === 'ultrasonic' && config.installHeight) {
+        const installHeight = parseFloat(config.installHeight);
+        const bankHeight = parseFloat(config.bankHeight) || 0;
+        
+        if (!isNaN(installHeight) && !isNaN(value)) {
+            const rawVal = value;
+            const waterLevel = Math.max(0, installHeight - rawVal);
+            const distanceToBank = bankHeight - waterLevel;
+            const isFlooding = distanceToBank < 0;
+            const overAmount = Math.abs(distanceToBank);
+            
+            detailMessage += `━━━━━━━━━━━━━━━━━━\n`;
+            detailMessage += `🌊 รายละเอียดระดับน้ำ:\n`;
+            detailMessage += `   • ระยะที่วัดได้: ${rawVal.toFixed(2)} ${unit}\n`;
+            detailMessage += `   • ระดับน้ำจริง: ${waterLevel.toFixed(2)} ${unit}\n`;
+            detailMessage += `   • ระยะติดตั้ง: ${installHeight} ${unit}\n`;
+            
+            if (bankHeight > 0) {
+                const percent = (waterLevel / bankHeight) * 100;
+                detailMessage += `   • ระดับตลิ่ง: ${bankHeight} ${unit}\n`;
+                detailMessage += `   • % ของตลิ่ง: ${percent.toFixed(0)}%\n`;
+                
+                if (isFlooding) {
+                    detailMessage += `   • 🌊 น้ำล้นตลิ่ง! สูงกว่า ${overAmount.toFixed(2)} ${unit}\n`;
+                    detailMessage += `   • 🚨 ต้องระบายน้ำท่วม! (น้ำเกินระดับตลิ่ง ${overAmount.toFixed(2)} ${unit})\n`;
+                    detailMessage += `   • 💡 คำแนะนำ: เร่งระบายน้ำทิ้งหรือเปิดประตูระบายน้ำ\n`;
+                    detailMessage += `   • ⚠️ หากน้ำสูงขึ้นต่อเนื่องควรแจ้งเตือนพื้นที่เสี่ยง\n`;
+                } else {
+                    detailMessage += `   • ห่างจากตลิ่ง: ${distanceToBank.toFixed(2)} ${unit}\n`;
+                }
+            }
+        }
+    }
+    
+    // ✅ กรณี Soil - เพิ่มสถานะความชื้น + คำแนะนำ
+    if (config.type === 'soil' && value !== undefined && !isNaN(value)) {
+        const num = parseFloat(value);
+        let soilStatus = "";
+        let soilAdvice = "";
+        if (num < 20) {
+            soilStatus = "🌵 แห้งมาก";
+            soilAdvice = "💧 ควรรดน้ำทันที";
+        } else if (num < 40) {
+            soilStatus = "🌿 แห้ง";
+            soilAdvice = "💧 ควรให้น้ำเพิ่ม";
+        } else if (num < 60) {
+            soilStatus = "🌱 พอดี";
+            soilAdvice = "✅ สภาพเหมาะสม";
+        } else if (num < 80) {
+            soilStatus = "🌳 ชื้น";
+            soilAdvice = "✅ น้ำเพียงพอ";
+        } else {
+            soilStatus = "💧 ชื้นมาก";
+            soilAdvice = "⚠️ ควรลดการให้น้ำ";
+        }
+        detailMessage += `🌱 สภาพดิน: ${soilStatus}\n`;
+        if (soilAdvice) detailMessage += `💡 ${soilAdvice}\n`;
+    }
+    
+    // ✅ กรณี Temperature - เพิ่มสถานะอากาศ + คำแนะนำ
+    if (config.type === 'temp' && value !== undefined && !isNaN(value)) {
+        const num = parseFloat(value);
+        let tempStatus = "";
+        let tempAdvice = "";
+        if (num < 10) {
+            tempStatus = "❄️ หนาวจัด";
+            tempAdvice = "🔥 ควรเพิ่มความร้อน";
+        } else if (num < 20) {
+            tempStatus = "🥶 หนาว";
+            tempAdvice = "🔥 ควรเพิ่มความร้อนเล็กน้อย";
+        } else if (num < 30) {
+            tempStatus = "😊 ปกติ";
+            tempAdvice = "✅ อุณหภูมิเหมาะสม";
+        } else if (num < 40) {
+            tempStatus = "🥵 ร้อน";
+            tempAdvice = "💨 ควรระบายอากาศ";
+        } else {
+            tempStatus = "🔥 ร้อนจัด";
+            tempAdvice = "🚨 ระบายอากาศทันที! เสี่ยงอันตราย";
+        }
+        detailMessage += `🌡️ สถานะอุณหภูมิ: ${tempStatus}\n`;
+        if (tempAdvice) detailMessage += `💡 ${tempAdvice}\n`;
+    }
+    
+    // ✅ กรณี Rain - เพิ่มสถานะฝน + คำแนะนำ
+    if (config.type === 'rain' && value !== undefined && !isNaN(value)) {
+        const num = parseFloat(value);
+        let rainStatus = "";
+        let rainAdvice = "";
+        if (num < 1) {
+            rainStatus = "☀️ ไม่มีฝน";
+            rainAdvice = "✅ สภาพปกติ";
+        } else if (num < 5) {
+            rainStatus = "🌤️ ฝนเล็กน้อย";
+            rainAdvice = "✅ ไม่ต้องกังวล";
+        } else if (num < 20) {
+            rainStatus = "🌧️ ฝนปานกลาง";
+            rainAdvice = "⚠️ เริ่มสังเกตการณ์";
+        } else if (num < 50) {
+            rainStatus = "🌧️ ฝนหนัก";
+            rainAdvice = "⚠️ ควรเตรียมรับมือน้ำท่วม";
+        } else {
+            rainStatus = "⛈️ ฝนหนักมาก";
+            rainAdvice = "🚨 เสี่ยงน้ำท่วม! ควรเตรียมการอพยพ";
+        }
+        detailMessage += `🌧️ สถานะฝน: ${rainStatus}\n`;
+        if (rainAdvice) detailMessage += `💡 ${rainAdvice}\n`;
+    }
+    
+    // ✅ กรณี pH - เพิ่มสถานะกรด-ด่าง + คำแนะนำ
+    if (config.type === 'ph' && value !== undefined && !isNaN(value)) {
+        const num = parseFloat(value);
+        let phStatus = "";
+        let phAdvice = "";
+        if (num < 4) {
+            phStatus = "🧪 กรดจัด";
+            phAdvice = "⚠️ ควรปรับเพิ่ม pH";
+        } else if (num < 6) {
+            phStatus = "🧪 กรดอ่อน";
+            phAdvice = "⚠️ ควรปรับเพิ่ม pH เล็กน้อย";
+        } else if (num <= 8) {
+            phStatus = "🧪 เป็นกลาง";
+            phAdvice = "✅ pH เหมาะสม";
+        } else if (num <= 10) {
+            phStatus = "🧪 ด่างอ่อน";
+            phAdvice = "⚠️ ควรปรับลด pH เล็กน้อย";
+        } else {
+            phStatus = "🧪 ด่างจัด";
+            phAdvice = "⚠️ ควรปรับลด pH";
+        }
+        detailMessage += `🧪 สถานะ pH: ${phStatus}\n`;
+        if (phAdvice) detailMessage += `💡 ${phAdvice}\n`;
+    }
+    
+    // ✅ หาข้อมูลเพิ่มเติมจากบอร์ด
+    let boardName = 'ไม่ระบุบอร์ด';
+    let boardStatus = 'ไม่ทราบสถานะ';
+    if (config.boardId && deviceConfigs[config.boardId]) {
+        const board = deviceConfigs[config.boardId];
+        boardName = board.name || config.boardId;
+        boardStatus = board.status === 'online' ? '🟢 ออนไลน์' : '🔴 ออฟไลน์';
+    }
+    
+    // ✅ ข้อมูลเวลาอัปเดตล่าสุด
+    let lastSeenDisplay = 'ไม่ทราบ';
+    if (config.lastSeen) {
+        const lastSeenTime = new Date(config.lastSeen);
+        if (!isNaN(lastSeenTime.getTime())) {
+            lastSeenDisplay = lastSeenTime.toLocaleString('th-TH');
+        }
+    }
+    
+    // ✅ สร้างข้อความแบบรายละเอียดเต็ม (เหมือนการ์ด)
+    const emojiMap = { ultrasonic: '📡', soil: '🌱', rain: '🌧️', ph: '🧪', temp: '🌡️' };
+    const icon = emojiMap[config.type] || '🔍';
+    
+    // ✅ ตรวจสอบว่าระดับใดที่กำลังแจ้งเตือน (ใช้ Water Level สำหรับ Ultrasonic)
+    let alertLevelName = 'ไม่ระบุ';
+    let alertLevelEmoji = '⚠️';
+    let alertCheckValue = value;
+    
+    // ✅ ถ้าเป็น Ultrasonic และมี installHeight ให้ใช้ Water Level
+    if (config.type === 'ultrasonic' && config.installHeight) {
+        const installHeight = parseFloat(config.installHeight);
+        if (!isNaN(installHeight) && !isNaN(value)) {
+            alertCheckValue = Math.max(0, installHeight - value);
+        }
+    }
+    
+    if (config.levels && Array.isArray(config.levels)) {
+        for (const level of config.levels) {
+            const min = parseFloat(level.min);
+            const max = parseFloat(level.max);
+            if (!isNaN(min) && !isNaN(max) && alertCheckValue >= min && alertCheckValue <= max && level.alert) {
+                alertLevelName = level.label || 'ไม่ระบุ';
+                alertLevelEmoji = '🚨';
+                break;
+            }
+        }
+    }
+    
+    // ✅ ตรวจสอบ Threshold (ใช้ Water Level สำหรับ Ultrasonic)
+    const threshold = config.advancedAlert?.threshold;
+    if (threshold !== null && threshold !== undefined && alertCheckValue >= threshold) {
+        alertLevelName = `เกินเกณฑ์ (${threshold} ${displayUnit})`;
+        alertLevelEmoji = '🚨';
+    }
+    
+    // ✅ ตรวจสอบน้ำท่วมเพิ่มเติม (กรณี Ultrasonic)
+    let floodWarning = '';
+    if (config.type === 'ultrasonic' && config.installHeight && config.bankHeight) {
+        const installHeight = parseFloat(config.installHeight);
+        const bankHeight = parseFloat(config.bankHeight);
+        if (!isNaN(installHeight) && !isNaN(bankHeight) && !isNaN(value)) {
+            const waterLevel = Math.max(0, installHeight - value);
+            if (waterLevel >= bankHeight) {
+                floodWarning = `\n🌊 สถานะ: น้ำท่วม! ระดับน้ำเกินตลิ่ง ${(waterLevel - bankHeight).toFixed(2)} ${displayUnit}`;
+                alertLevelEmoji = '🌊';
+                alertLevelName = `น้ำท่วม! (เกินตลิ่ง ${(waterLevel - bankHeight).toFixed(2)} ${displayUnit})`;
+            }
+        }
+    }
+    
+    // ✅ สร้างข้อความแสดงค่าปัจจุบัน (แสดงทั้ง Raw และ Water Level สำหรับ Ultrasonic)
+    let currentValueDisplay = '';
+    if (config.type === 'ultrasonic' && config.installHeight) {
+        const installHeight = parseFloat(config.installHeight);
+        if (!isNaN(installHeight) && !isNaN(value)) {
+            const waterLevel = Math.max(0, installHeight - value);
+            currentValueDisplay = `📈 ค่าปัจจุบัน: ${waterLevel.toFixed(2)} ${displayUnit} (ระยะที่วัดได้: ${value.toFixed(2)} ${unit})`;
+        } else {
+            currentValueDisplay = `📈 ค่าปัจจุบัน: ${value !== undefined && value !== null ? value.toFixed(2) : '--'} ${unit}`;
+        }
+    } else {
+        currentValueDisplay = `📈 ค่าปัจจุบัน: ${value !== undefined && value !== null ? value.toFixed(2) : '--'} ${unit}`;
+    }
+    
+    let body = `
+${icon} <b>แจ้งเตือนจากเซนเซอร์</b>
+━━━━━━━━━━━━━━━━━━
 📛 ชื่อ: ${config.name || sensorId}
 🆔 ID: ${sensorId}
 📊 ประเภท: ${config.type || 'ไม่ระบุ'}
-📈 ค่าปัจจุบัน: ${currentSensorValues[sensorId] || 'ไม่ทราบ'} ${config.unit || ''}
+${currentValueDisplay}
+🔌 บอร์ด: ${boardName} ${boardStatus}
 
-📝 รายละเอียด:
-${alertText}
-
+━━━━━━━━━━━━━━━━━━
+📝 <b>รายละเอียดสถานะ:</b>
+${detailMessage || '   • กำลังตรวจสอบ...'}
+${floodWarning}
+━━━━━━━━━━━━━━━━━━
+${alertLevelEmoji} <b>การแจ้งเตือน:</b> ${alertLevelName}
 🔢 ครั้งที่แจ้ง: ${currentCount + 1}/${limit}
-⏱️ เวลา: ${new Date().toLocaleString('th-TH')}
+${config.alertEnabled !== false ? '🔔 สถานะแจ้งเตือน: เปิด' : '🔇 สถานะแจ้งเตือน: ปิด'}
+🕐 อัปเดตล่าสุด: ${lastSeenDisplay}
     `.trim();
     
+    const title = `🚨 แจ้งเตือน: ${config.name || sensorId}`;
     const finalMsg = formatTelegramMessage(body, "ระบบแจ้งเตือนอัตโนมัติ", title);
     
     // ✅ ส่งข้อความ
@@ -4610,7 +5000,7 @@ ${alertText}
         
         // ✅ บันทึกประวัติ
         await saveAlertHistory(sensorId, {
-            message: alertText,
+            message: alertMessages.join('\n'),
             status: 'sent',
             value: currentSensorValues[sensorId],
             count: currentCount + 1
@@ -4629,8 +5019,6 @@ ${alertText}
         return false;
     }
 }
-
-
 // ============================================================
 //  18. ALERT SYSTEM - FULLY FIXED (Auto Reset is_acknowledged)
 //  ✅ ตรวจสอบทุกเงื่อนไขและส่งแจ้งเตือนทาง Telegram
@@ -6800,9 +7188,11 @@ window.openSettingsManager = function() {
         loadSubscribers();
         loadTelegramHistory();
         renderTelegramSchedules();
-        // ✅ เพิ่มบรรทัดนี้
+        // ✅ โหลดค่า Auto-Dismiss & Auto-Reset ทุกครั้งที่เปิด Modal
         if (typeof loadAutoDismissResetSettings === 'function') {
             loadAutoDismissResetSettings();
+        } else {
+            console.warn("⚠️ loadAutoDismissResetSettings ไม่พร้อม");
         }
     }
 };

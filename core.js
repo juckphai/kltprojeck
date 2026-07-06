@@ -2046,6 +2046,7 @@ if (typeof window.updateChartStructure !== 'function') {
 // ============================================================
 
 // ✅ โหลดค่าจาก Firebase
+// ✅ โหลดค่าจาก Firebase
 async function loadAutoDismissResetSettings() {
     if (!window.db) {
         console.warn("⚠️ Firebase ยังไม่พร้อม");
@@ -2053,21 +2054,35 @@ async function loadAutoDismissResetSettings() {
     }
     
     try {
+        // ✅ รอให้ DOM element พร้อม
+        const dismissInput = document.getElementById('autoDismissTime');
+        const dismissDisplay = document.getElementById('currentDismissTimeDisplay');
+        const resetInput = document.getElementById('autoResetTime');
+        const resetDisplay = document.getElementById('currentResetTimeDisplay');
+        
+        // ✅ ตรวจสอบว่า element มีอยู่จริง
+        if (!dismissInput || !resetInput) {
+            console.warn("⚠️ ไม่พบ element autoDismissTime หรือ autoResetTime");
+            // ถ้าไม่มี element ให้รอแล้วลองใหม่
+            setTimeout(() => {
+                if (document.getElementById('settingsModal')?.style.display === 'flex') {
+                    loadAutoDismissResetSettings();
+                }
+            }, 500);
+            return;
+        }
+        
         // โหลด Auto-Dismiss Time
         const dismissSnap = await window.get(window.ref(window.db, 'settings/auto_dismiss_time'));
         if (dismissSnap.exists()) {
             const minutes = dismissSnap.val();
             window.AUTO_DISMISS_ALERT_TIME = minutes * 60 * 1000;
-            const dismissInput = document.getElementById('autoDismissTime');
-            const dismissDisplay = document.getElementById('currentDismissTimeDisplay');
             if (dismissInput) dismissInput.value = minutes;
             if (dismissDisplay) dismissDisplay.textContent = minutes;
             console.log(`✅ โหลด Auto-Dismiss Time: ${minutes} นาที`);
         } else {
             // ถ้ายังไม่มีใน Firebase ให้ใช้ค่าเริ่มต้น 5 นาที
             window.AUTO_DISMISS_ALERT_TIME = 5 * 60 * 1000;
-            const dismissInput = document.getElementById('autoDismissTime');
-            const dismissDisplay = document.getElementById('currentDismissTimeDisplay');
             if (dismissInput) dismissInput.value = 5;
             if (dismissDisplay) dismissDisplay.textContent = 5;
             console.log(`📭 ยังไม่มีค่า Auto-Dismiss Time ใช้ค่าเริ่มต้น 5 นาที`);
@@ -2078,16 +2093,12 @@ async function loadAutoDismissResetSettings() {
         if (resetSnap.exists()) {
             const minutes = resetSnap.val();
             window.AUTO_ACK_RESET_TIME = minutes * 60 * 1000;
-            const resetInput = document.getElementById('autoResetTime');
-            const resetDisplay = document.getElementById('currentResetTimeDisplay');
             if (resetInput) resetInput.value = minutes;
             if (resetDisplay) resetDisplay.textContent = minutes;
             console.log(`✅ โหลด Auto-Reset Time: ${minutes} นาที`);
         } else {
             // ถ้ายังไม่มีใน Firebase ให้ใช้ค่าเริ่มต้น 5 นาที
             window.AUTO_ACK_RESET_TIME = 5 * 60 * 1000;
-            const resetInput = document.getElementById('autoResetTime');
-            const resetDisplay = document.getElementById('currentResetTimeDisplay');
             if (resetInput) resetInput.value = 5;
             if (resetDisplay) resetDisplay.textContent = 5;
             console.log(`📭 ยังไม่มีค่า Auto-Reset Time ใช้ค่าเริ่มต้น 5 นาที`);
