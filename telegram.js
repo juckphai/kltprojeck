@@ -1,6 +1,6 @@
 // ============================================================
 //  KLT Smart Farm Station - Telegram Module
-//  Version: 2.7 (Per-Board Weather Support + PM 2.5)
+//  Version: 2.6 (Per-Board Weather Support)
 // ============================================================
 
 // ============================================================
@@ -91,7 +91,7 @@ window.saveGPSLocation = function() {
 };
 
 // ============================================================
-//  2. FORMAT TELEGRAM MESSAGE (UPDATED - with Location & GPS + PM2.5)
+//  2. FORMAT TELEGRAM MESSAGE (UPDATED - with Location & GPS)
 // ============================================================
 function formatTelegramMessage(body, sender = "ระบบแจ้งเตือน", title = "รายงานจากระบบ") {
     const projectTitle = document.getElementById('projectTitle')?.textContent || "Smart Farm Station";
@@ -136,50 +136,17 @@ function formatTelegramMessage(body, sender = "ระบบแจ้งเตื
                `━━━━━━━━━━━━━━━━━━\n` +
                body;
     
-    // ===== เพิ่มข้อมูลสภาพอากาศหลัก (Weather) - รวม PM 2.5 =====
+    // ===== เพิ่มข้อมูลสภาพอากาศหลัก (Weather) - ใช้สำหรับอ้างอิง =====
     const weatherData = window.weatherData;
     if (weatherConfig.attachToReport === true && weatherData) {
         let weatherBody = `\n━━━━━━━━━━━━━━━━━━\n🌤️ <b>สภาพอากาศ (${weatherData.name || 'ปัจจุบัน'}):</b>\n`;
         const f = weatherConfig.fields || {};
         let hasContent = false;
-        
-        if (f.temp) { 
-            weatherBody += `🌡️ อุณหภูมิ: ${weatherData.main.temp}°C\n`; 
-            hasContent = true; 
-        }
-        if (f.humidity) { 
-            weatherBody += `💧 ความชื้น: ${weatherData.main.humidity}%\n`; 
-            hasContent = true; 
-        }
-        if (f.description) { 
-            weatherBody += `☁️ สภาพ: ${weatherData.weather[0].description}\n`; 
-            hasContent = true; 
-        }
-        if (f.wind) { 
-            weatherBody += `🌬️ ลม: ${weatherData.wind.speed} m/s\n`; 
-            hasContent = true; 
-        }
-        if (f.pressure) { 
-            weatherBody += `⏲️ ความกดอากาศ: ${weatherData.main.pressure} hPa\n`; 
-            hasContent = true; 
-        }
-        
-        // ✅ เพิ่ม PM 2.5
-        if (f.pm25 && weatherData.pm25 !== undefined && weatherData.pm25 !== null) { 
-            const pm25Value = weatherData.pm25;
-            let pm25Label = '';
-            if (pm25Value <= 15) pm25Label = ' (ดี)';
-            else if (pm25Value <= 25) pm25Label = ' (ปานกลาง)';
-            else if (pm25Value <= 37) pm25Label = ' (มีผลต่อสุขภาพ)';
-            else if (pm25Value <= 50) pm25Label = ' (ไม่ดี)';
-            else if (pm25Value <= 75) pm25Label = ' (แย่)';
-            else pm25Label = ' (อันตราย)';
-            weatherBody += `🌫️ PM 2.5: ${pm25Value.toFixed(1)} µg/m³${pm25Label}\n`; 
-            hasContent = true; 
-        } else if (f.pm25) {
-            weatherBody += `🌫️ PM 2.5: -- µg/m³ (ไม่พบข้อมูล)\n`;
-        }
-        
+        if (f.temp) { weatherBody += `🌡️ อุณหภูมิ: ${weatherData.main.temp}°C\n`; hasContent = true; }
+        if (f.humidity) { weatherBody += `💧 ความชื้น: ${weatherData.main.humidity}%\n`; hasContent = true; }
+        if (f.description) { weatherBody += `☁️ สภาพ: ${weatherData.weather[0].description}\n`; hasContent = true; }
+        if (f.wind) { weatherBody += `🌬️ ลม: ${weatherData.wind.speed} m/s\n`; hasContent = true; }
+        if (f.pressure) { weatherBody += `⏲️ ความกดอากาศ: ${weatherData.main.pressure} hPa\n`; hasContent = true; }
         if (hasContent) {
             message += weatherBody;
         }
@@ -482,10 +449,9 @@ async function generateStatusReport() {
     
     return body;
 }
-
 // ============================================================
-//  5. SYSTEM REPORT (UPDATED - with Location & Per-Board Weather + PM2.5)
-//   แก้ไข: เพิ่ม PM 2.5 ในส่วนสภาพอากาศของแต่ละบอร์ด
+//  5. SYSTEM REPORT (UPDATED - with Location & Per-Board Weather)
+//   แก้ไข: เอาส่วนแสดงตำแหน่งหลัก และสภาพอากาศในแต่ละบอร์ดออก
 // ============================================================
 async function generateSystemReport() {
     let body = "⚙️ <b>รายงานสถานะอุปกรณ์และระบบ</b>\n\n";
@@ -517,7 +483,7 @@ async function generateSystemReport() {
         
         // รายละเอียดแต่ละบอร์ด
         body += `  📋 <b>รายละเอียดแต่ละบอร์ด:</b>\n`;
-        for (const [id, config] of boards) {
+        boards.forEach(([id, config]) => {
             const lastSeen = getTimestampMs(config.lastSeen);
             const isOnline = (now - lastSeen) < 420000;
             const rssi = config.wifi_rssi || 0;
@@ -527,55 +493,13 @@ async function generateSystemReport() {
             
             body += `    • <b>${config.name || id}</b>: ${statusText} | 📶 ${rssi} dBm | ⏳ ${uptime}\n`;
             
-            // ===== แสดงสภาพอากาศของบอร์ดนี้ (รวม PM 2.5) =====
-            if (config.weather_config && config.weather_config.lat) {
-                const wc = config.weather_config;
-                body += `      🌤️ สภาพอากาศ (${wc.locationName || 'ไม่ระบุ'}):\n`;
-                try {
-                    const weatherData = await fetchWeatherData(wc.lat, wc.lon);
-                    if (weatherData) {
-                        const f = wc.fields || {};
-                        if (f.temp) {
-                            body += `        🌡️ อุณหภูมิ: ${weatherData.main.temp.toFixed(1)}°C\n`;
-                        }
-                        if (f.humidity) {
-                            body += `        💧 ความชื้น: ${weatherData.main.humidity}%\n`;
-                        }
-                        if (f.description) {
-                            body += `        ☁️ สภาพ: ${weatherData.weather[0].description}\n`;
-                        }
-                        if (f.wind) {
-                            body += `        🌬️ ลม: ${weatherData.wind.speed} m/s\n`;
-                        }
-                        if (f.pressure) {
-                            body += `        ⏲️ ความกดอากาศ: ${weatherData.main.pressure} hPa\n`;
-                        }
-                        // ✅ PM 2.5
-                        if (f.pm25 && weatherData.pm25 !== undefined && weatherData.pm25 !== null) {
-                            const pm25Value = weatherData.pm25;
-                            let pm25Label = '';
-                            if (pm25Value <= 15) pm25Label = ' (ดี)';
-                            else if (pm25Value <= 25) pm25Label = ' (ปานกลาง)';
-                            else if (pm25Value <= 37) pm25Label = ' (มีผลต่อสุขภาพ)';
-                            else if (pm25Value <= 50) pm25Label = ' (ไม่ดี)';
-                            else if (pm25Value <= 75) pm25Label = ' (แย่)';
-                            else pm25Label = ' (อันตราย)';
-                            body += `        🌫️ PM 2.5: ${pm25Value.toFixed(1)} µg/m³${pm25Label}\n`;
-                        } else if (f.pm25) {
-                            body += `        🌫️ PM 2.5: -- µg/m³ (ไม่พบข้อมูล)\n`;
-                        }
-                    } else {
-                        body += `        ⚠️ ไม่สามารถโหลดข้อมูลสภาพอากาศ\n`;
-                    }
-                } catch (e) {
-                    body += `        ⚠️ เกิดข้อผิดพลาดในการโหลดสภาพอากาศ\n`;
-                }
-            }
+            // ===== 🔴 เอาส่วนแสดงสภาพอากาศของบอร์ดนี้ (🌤️ สภาพอากาศ: ...) ออก 🔴 =====
+            // ไม่แสดงสภาพอากาศในส่วนนี้แล้ว
             
             if (!isOnline) {
                 body += `      📅 ออฟไลน์ตั้งแต่: ${lastSeenDisplay}\n`;
             }
-        }
+        });
     }
     
     body += `\n━━━━━━━━━━━━━━━━━━\n`;
@@ -684,7 +608,6 @@ async function generateSystemReport() {
     
     return body;
 }
-
 // ============================================================
 //  6. SUMMARY REPORT (UPDATED - with Location)
 //   แก้ไข: เอาส่วนแสดงตำแหน่งที่ตั้งและพิกัดออก
@@ -858,7 +781,6 @@ async function generateSummaryReport() {
         return `❌ เกิดข้อผิดพลาดในการสร้างรายงาน: ${error.message}`;
     }
 }
-
 // ============================================================
 //  7. SEND TELEGRAM
 // ============================================================
@@ -1622,7 +1544,7 @@ window.addGPSButton = function() {
 };
 
 // ============================================================
-//  16. FETCH WEATHER DATA (สำหรับใช้ใน generateSystemReport)
+//  16. FETCH WEATHER DATA (สำหรับใช้ใน generateStatusReport)
 // ============================================================
 async function fetchWeatherData(lat, lon) {
     if (!lat || !lon) return null;
@@ -1645,7 +1567,7 @@ async function fetchWeatherData(lat, lon) {
 //  17. TELEGRAM INIT
 // ============================================================
 function initTelegramModule() {
-    console.log("🚀 Telegram Module เริ่มทำงาน (เวอร์ชัน 2.7 - Per-Board Weather + PM 2.5 Support)");
+    console.log("🚀 Telegram Module เริ่มทำงาน (เวอร์ชัน 2.6 - Per-Board Weather Support)");
     setTimeout(() => {
         loadTelegramConfig();
         loadSubscribers();
@@ -1655,4 +1577,4 @@ function initTelegramModule() {
     }, 1000);
 }
 
-console.log("✅ telegram.js โหลดเรียบร้อย (เวอร์ชัน 2.7 - Per-Board Weather + PM 2.5 Support)");
+console.log("✅ telegram.js โหลดเรียบร้อย (เวอร์ชัน 2.6 - Per-Board Weather Support)");

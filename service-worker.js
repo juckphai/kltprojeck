@@ -1,4 +1,4 @@
-const CACHE_NAME = 'kltsscoke-cache-v119';
+const CACHE_NAME = 'kltsscoke-cache-v11999';
 // รายชื่อไฟล์ที่ต้องการให้โหลดได้แม้ไม่มีเน็ต
 const ASSETS = [
   './',

@@ -1,0 +1,115 @@
+เพื่อให้ระบบสามารถตั้งค่าสภาพอากาศแยกตามบอร์ดได้สะดวกขึ้น โดยเฉพาะการใช้ GPS จากโทรศัพท์มือถือ เพื่อค้นหาสถานที่ที่ใกล้ที่สุดและบันทึกลงบอร์ดที่เลือกโดยอัตโนมัติ ผมได้ทำการปรับปรุงโค้ดใน 3 ส่วนหลักดังนี้ครับ:
+1. แก้ไขไฟล์ index.html (เพิ่มปุ่ม GPS ในหน้าตั้งค่า)
+เพิ่มปุ่ม "📍 ใช้ตำแหน่งจาก GPS" เข้าไปใน boardWeatherModal เพื่อให้กดค้นหาจากพิกัดปัจจุบันได้ทันที
+code
+Html
+<!-- ค้นหาไฟล์ index.html ส่วนของ boardWeatherModal (ประมาณบรรทัดที่ 600) แล้วแทนที่ส่วนค้นหาด้วยโค้ดนี้ -->
+<div style="background: #f8fafc; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 15px;">
+    <label style="display:block; font-size: 0.8rem; color:#475569; margin-bottom:5px;">🔍 ค้นหาสถานที่:</label>
+    <div style="display: flex; gap: 8px; flex-direction: column;">
+        <div style="display: flex; gap: 8px;">
+            <input type="text" id="boardWeatherSearchInput" placeholder="พิมพ์ชื่ออำเภอ/จังหวัด" style="flex: 1; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1;">
+            <button onclick="searchBoardLocation()" style="background: #3b82f6; color:white; border:none; padding:10px 20px; border-radius:8px; cursor:pointer; font-weight:bold;">ค้นหา</button>
+        </div>
+        <!-- ปุ่ม GPS ใหม่ -->
+        <button onclick="useGPSForBoardWeather()" style="background: linear-gradient(135deg, #059669, #10b981); color:white; border:none; padding:12px; border-radius:8px; cursor:pointer; font-weight:bold; display: flex; align-items:center; justify-content: center; gap: 8px;">
+            📍 ใช้ตำแหน่งปัจจุบันจาก GPS (มือถือ)
+        </button>
+    </div>
+    <div id="boardLocationResults" style="margin-top: 10px; display: none; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; max-height: 200px; overflow-y: auto;"></div>
+</div>
+2. แก้ไขไฟล์ sensors.js (เพิ่มระบบค้นหาจาก GPS)
+เพิ่มฟังก์ชันสำหรับการขอสิทธิ์เข้าถึง GPS, แปลงพิกัดเป็นชื่อสถานที่ (Reverse Geocoding), และบันทึกลงบอร์ด
+code
+JavaScript
+// ค้นหาตำแหน่งท้ายไฟล์ sensors.js แล้วเพิ่มฟังก์ชันเหล่านี้เข้าไปครับ
+
+// 1. ฟังก์ชันขอพิกัด GPS จากเบราว์เซอร์/มือถือ
+window.useGPSForBoardWeather = function() {
+    const btn = event.currentTarget;
+    const originalText = btn.innerHTML;
+    
+    if (!navigator.geolocation) {
+        alert("❌ เบราว์เซอร์ของคุณไม่รองรับ GPS");
+        return;
+    }
+
+    btn.disabled = true;
+    btn.innerHTML = "⏳ กำลังจับสัญญาณ GPS...";
+
+    navigator.geolocation.getCurrentPosition(
+        async (position) => {
+            const lat = position.coords.latitude;
+            const lon = position.coords.longitude;
+            console.log(`📍 GPS ได้รับพิกัด: ${lat}, ${lon}`);
+            
+            // ค้นหาชื่อสถานที่จากพิกัด (Reverse Geocoding)
+            await searchBoardLocationByCoords(lat, lon);
+            
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        },
+        (error) => {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+            let msg = "ไม่สามารถระบุตำแหน่งได้";
+            if (error.code === 1) msg = "กรุณาอนุญาตให้เข้าถึง GPS (Location)";
+            alert(`❌ GPS Error: ${msg}`);
+        },
+        { enableHighAccuracy: true, timeout: 10000 }
+    );
+};
+
+// 2. ฟังก์ชันค้นหาชื่อสถานที่จากพิกัด (ใช้ OpenWeatherMap Geo API)
+async function searchBoardLocationByCoords(lat, lon) {
+    const resultsDiv = document.getElementById('boardLocationResults');
+    if (!resultsDiv) return;
+    
+    resultsDiv.innerHTML = "<div style='color:#60a5fa; padding:10px;'>⏳ กำลังระบุสถานที่ใกล้เคียง...</div>";
+    resultsDiv.style.display = "block";
+
+    try {
+        // ใช้ API แปลงพิกัดเป็นชื่อสถานที่
+        const API_KEY = "dd879305b1074776a9c228f0b27798a3";
+        const url = `https://api.openweathermap.org/geo/1.0/reverse?lat=${lat}&lon=${lon}&limit=5&appid=${API_KEY}`;
+        
+        const res = await fetch(url);
+        const data = await res.json();
+
+        if (!data || data.length === 0) {
+            resultsDiv.innerHTML = "<div style='color:#ef4444; padding:10px;'>❌ ไม่พบชื่อสถานที่ในพิกัดนี้</div>";
+            return;
+        }
+
+        let html = '<p style="color: #059669; font-size: 0.8rem; margin-bottom: 8px; padding:0 10px; font-weight:bold;">📍 พบสถานที่ใกล้เคียง (จาก GPS):</p>';
+        data.forEach(loc => {
+            const displayName = `${loc.name}${loc.state ? ', ' + loc.state : ''} (${loc.country})`;
+            html += `
+                <button onclick="saveBoardWeatherLocation('${displayName.replace(/'/g, "\\'")}', ${lat}, ${lon})" 
+                        style="display:block; width:100%; text-align:left; padding:12px; margin-bottom:5px; 
+                               background:#f0fdf4; color:#065f46; border:1px solid #bbf7d0; border-radius:8px; 
+                               cursor:pointer; transition:0.2s;">
+                    <span style="display:block; font-weight:bold;">🏡 ${displayName}</span>
+                    <span style="font-size:0.7rem; color:#059669;">พิกัดปัจจุบันของคุณ: ${lat.toFixed(4)}, ${lon.toFixed(4)}</span>
+                    <span style="display:block; font-size:0.7rem; color:#10b981; margin-top:4px;">✨ คลิกเพื่อบันทึกลงบอร์ดที่เลือก</span>
+                </button>`;
+        });
+        resultsDiv.innerHTML = html;
+    } catch (e) {
+        console.error("❌ Reverse Geocoding error:", e);
+        resultsDiv.innerHTML = "<div style='color:#ef4444; padding:10px;'>❌ เกิดข้อผิดพลาดในการดึงชื่อสถานที่</div>";
+    }
+}
+การเปลี่ยนแปลงที่เกิดขึ้น:
+Select Board First: ผู้ใช้ต้องกดปุ่ม "🌤️ ตั้งค่า" ท้ายชื่อบอร์ดในตารางบอร์ดก่อน ระบบจะจำว่าตอนนี้กำลังตั้งค่าให้ Board ID ไหนอยู่
+GPS Integration: เพิ่มปุ่มเขียวในหน้าตั้งค่าสภาพอากาศ เมื่อกดบนมือถือ ระบบจะขอพิกัดปัจจุบัน
+Reverse Geocoding: ระบบจะไม่แสดงแค่พิกัดตัวเลข แต่จะวิ่งไปถาม OpenWeatherMap ว่า "พิกัดนี้คือตำบล/อำเภออะไร" แล้วแสดงชื่อให้เลือก
+Automatic Binding: เมื่อเลือกสถานที่จากรายการที่พบ ข้อมูลจะถูกบันทึกลงในบอร์ดนั้นๆ ใน Firebase ภายใต้ Path device_configs/{boardId}/weather_config ทันที
+วิธีใช้งาน:
+ไปที่หน้า "⚙️ จัดการบอร์ดและเซนเซอร์"
+ดูที่ตาราง "🔌 จัดการบอร์ด ESP32"
+กดปุ่ม "🌤️ ตั้งค่า" หลังชื่อบอร์ดที่ต้องการ
+ในหน้าต่างที่เด้งขึ้นมา ให้กดปุ่ม "📍 ใช้ตำแหน่งปัจจุบันจาก GPS"
+กดยอมรับการแชร์พิกัดบนมือถือ
+เลือกชื่อสถานที่ที่ระบบหามาให้
+กด "💾 บันทึกการตั้งค่าสภาพอากาศ" เป็นอันเสร็จสิ้นครับ

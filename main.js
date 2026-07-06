@@ -1,6 +1,6 @@
 // ============================================================
 //  main.js - ตัวจัดการหลัก (Module Loader)
-//  Version: 2.6 (Cleaned - Removed Duplicate Functions)
+//  Version: 2.4 (พร้อม Storage Monitor + Clear Local Data + Toggle Chart + Toggle Analytics)
 // ============================================================
 
 console.log("📦 main.js โหลดเรียบร้อย");
@@ -25,7 +25,7 @@ function waitForModules(callback, maxAttempts = 30) {
         'initCoreModule',
         'initSensorModule',
         'initTelegramModule',
-        'initStorageMonitor'
+        'initStorageMonitor'  // ✅ เพิ่ม Storage Monitor
     ];
     
     function check() {
@@ -96,6 +96,7 @@ function startApp() {
         }
         console.log("✅ ระบบเริ่มต้นสมบูรณ์!");
         
+        // ✅ เริ่ม Storage Monitor หลังจากระบบหลักทำงาน
         setTimeout(() => {
             if (typeof initStorageMonitor === 'function') {
                 console.log("💾 เรียก initStorageMonitor()");
@@ -138,6 +139,7 @@ window.toggleSummaryTable = function() {
 //  4. 🗑️ CLEAR LOCAL DATA - ลบข้อมูลในเครื่อง (LocalStorage, SessionStorage, Cache)
 // ============================================================
 window.confirmClearLocalData = function() {
+    // ✅ รหัสยืนยันเพื่อป้องกันการลบโดยไม่ตั้งใจ
     const CONFIRM_CODE = "55555";
     
     const userInput = prompt(
@@ -161,12 +163,14 @@ window.confirmClearLocalData = function() {
         return;
     }
     
+    // ✅ ยืนยันอีกครั้ง
     if (!confirm("⚠️ ยืนยันการลบข้อมูลในเครื่องทั้งหมด?\n\n" +
                  "💡 ข้อมูล Firebase ยังคงอยู่ แต่คุณจะต้องเข้าสู่ระบบใหม่")) {
         return;
     }
     
     try {
+        // ✅ แสดงข้อความกำลังดำเนินการ
         const loadingDiv = document.createElement('div');
         loadingDiv.id = 'clearLocalDataLoading';
         loadingDiv.style.cssText = `
@@ -201,22 +205,29 @@ window.confirmClearLocalData = function() {
         `;
         document.body.appendChild(loadingDiv);
         
+        // ✅ หน่วงเวลาเล็กน้อยให้เห็น animation
         setTimeout(() => {
+            // ✅ 1. ล้าง LocalStorage
+            const localStorageKeys = Object.keys(localStorage);
             let localStorageCount = 0;
-            for (const key of Object.keys(localStorage)) {
-                if (key === 'pwa_installed') continue;
+            for (const key of localStorageKeys) {
+                // ✅ เก็บ key ที่สำคัญไว้ (ถ้าต้องการ)
+                if (key === 'pwa_installed') continue; // ข้าม PWA status
                 localStorage.removeItem(key);
                 localStorageCount++;
             }
             console.log(`✅ ลบ LocalStorage ${localStorageCount} รายการ`);
             
+            // ✅ 2. ล้าง SessionStorage
+            const sessionStorageKeys = Object.keys(sessionStorage);
             let sessionStorageCount = 0;
-            for (const key of Object.keys(sessionStorage)) {
+            for (const key of sessionStorageKeys) {
                 sessionStorage.removeItem(key);
                 sessionStorageCount++;
             }
             console.log(`✅ ลบ SessionStorage ${sessionStorageCount} รายการ`);
             
+            // ✅ 3. ล้าง Cache (ถ้ามี)
             if ('caches' in window) {
                 try {
                     caches.keys().then(cacheNames => {
@@ -230,8 +241,10 @@ window.confirmClearLocalData = function() {
                 }
             }
             
+            // ✅ 4. ล้าง IndexedDB (ถ้ามี)
             if (window.indexedDB) {
                 try {
+                    // ✅ ใช้วิธีที่ปลอดภัยกว่า
                     const databases = ['firebaseLocalStorageDb', 'firebaseStorage', 'KLTDB'];
                     databases.forEach(dbName => {
                         try {
@@ -246,7 +259,9 @@ window.confirmClearLocalData = function() {
                 }
             }
             
+            // ✅ 5. ลบข้อมูลที่เกี่ยวข้องกับ Firebase (ถ้ามี)
             try {
+                // ล้าง Firebase Local Cache
                 if (window.firebase && window.firebase.auth) {
                     try {
                         window.firebase.auth().signOut();
@@ -254,6 +269,7 @@ window.confirmClearLocalData = function() {
                     } catch(e) {}
                 }
                 
+                // ล้าง Service Worker Registration (ถ้ามี)
                 if ('serviceWorker' in navigator) {
                     navigator.serviceWorker.getRegistrations().then(registrations => {
                         registrations.forEach(registration => {
@@ -266,6 +282,7 @@ window.confirmClearLocalData = function() {
                 console.warn("⚠️ ไม่สามารถล้าง Firebase/SW ได้:", e);
             }
             
+            // ✅ 6. ลบ Cookies (ถ้ามี)
             try {
                 document.cookie.split(";").forEach(c => {
                     document.cookie = c.replace(/^ +/, "")
@@ -276,10 +293,12 @@ window.confirmClearLocalData = function() {
                 console.warn("⚠️ ไม่สามารถลบ Cookies ได้:", e);
             }
             
+            // ✅ 7. ลบข้อความโหลด
             if (loadingDiv.parentNode) {
                 loadingDiv.remove();
             }
             
+            // ✅ 8. แสดงผลสำเร็จ
             alert(`✅ ลบข้อมูลในเครื่องสำเร็จ!\n\n` +
                   `📊 สรุป:\n` +
                   `   • LocalStorage: ${localStorageCount} รายการ\n` +
@@ -288,6 +307,7 @@ window.confirmClearLocalData = function() {
                   `   • Cookies: เรียบร้อย\n\n` +
                   `🔄 ระบบจะทำการรีโหลดหน้าเว็บเพื่อเริ่มต้นใหม่`);
             
+            // ✅ 9. รีโหลดหน้าเว็บ
             setTimeout(() => {
                 window.location.reload();
             }, 2000);
@@ -303,7 +323,7 @@ window.confirmClearLocalData = function() {
 };
 
 // ============================================================
-//  5. 🗑️ CLEAR LOCAL DATA (แบบง่าย)
+//  5. 🗑️ CLEAR LOCAL DATA (แบบง่าย - ไม่ต้องรหัสยืนยัน)
 // ============================================================
 window.clearLocalDataSimple = function() {
     if (!confirm("⚠️ ยืนยันลบข้อมูลในเครื่องทั้งหมด?\n\n" +
@@ -312,12 +332,15 @@ window.clearLocalDataSimple = function() {
     }
     
     try {
+        // ✅ ล้าง LocalStorage
         localStorage.clear();
         console.log("✅ ล้าง LocalStorage เรียบร้อย");
         
+        // ✅ ล้าง SessionStorage
         sessionStorage.clear();
         console.log("✅ ล้าง SessionStorage เรียบร้อย");
         
+        // ✅ ล้าง Cache
         if ('caches' in window) {
             caches.keys().then(cacheNames => {
                 cacheNames.forEach(cacheName => {
@@ -584,12 +607,15 @@ window.toggleChart = function() {
     
     if (!container || !btn) return;
     
+    // ตรวจสอบสถานะปัจจุบัน
     const isHidden = container.classList.contains('hidden-chart');
     
     if (isHidden) {
+        // แสดงกราฟ
         container.classList.remove('hidden-chart');
         btn.textContent = '🔼 ซ่อนกราฟ';
         btn.classList.remove('shrink');
+        // ต้อง resize chart หลังจากแสดง
         setTimeout(() => {
             if (chart && typeof chart.resize === 'function') {
                 chart.resize();
@@ -597,6 +623,7 @@ window.toggleChart = function() {
         }, 300);
         localStorage.setItem('chartVisible', 'true');
     } else {
+        // ซ่อนกราฟ
         container.classList.add('hidden-chart');
         btn.textContent = '🔽 แสดงกราฟ';
         btn.classList.add('shrink');
@@ -613,14 +640,17 @@ window.toggleAnalytics = function() {
     
     if (!section || !btn) return;
     
+    // ตรวจสอบสถานะปัจจุบัน
     const isHidden = section.classList.contains('hidden-analytics');
     
     if (isHidden) {
+        // แสดง Analytics
         section.classList.remove('hidden-analytics');
         btn.textContent = '🔼 ซ่อน Analytics';
         btn.classList.remove('show');
         localStorage.setItem('analyticsVisible', 'true');
     } else {
+        // ซ่อน Analytics
         section.classList.add('hidden-analytics');
         btn.textContent = '🔽 แสดง Analytics';
         btn.classList.add('show');
@@ -632,8 +662,10 @@ window.toggleAnalytics = function() {
 //  10. โหลดสถานะการแสดงกราฟจาก LocalStorage
 // ============================================================
 window.loadChartVisibility = function() {
+    // ✅ เปลี่ยนเป็นซ่อนกราฟเป็นค่าเริ่มต้น
     const isVisible = localStorage.getItem('chartVisible');
     
+    // ถ้ายังไม่เคยตั้งค่า หรือตั้งค่าเป็น 'false' ให้ซ่อน
     if (isVisible === null || isVisible === 'false') {
         const container = document.getElementById('chartContainer');
         const btn = document.getElementById('chartToggleBtn');
@@ -658,8 +690,10 @@ window.loadChartVisibility = function() {
 //  10.1 โหลดสถานะการแสดง Analytics จาก LocalStorage
 // ============================================================
 window.loadAnalyticsVisibility = function() {
+    // ✅ ซ่อน Analytics เป็นค่าเริ่มต้น
     const isVisible = localStorage.getItem('analyticsVisible');
     
+    // ถ้ายังไม่เคยตั้งค่า หรือตั้งค่าเป็น 'false' ให้ซ่อน
     if (isVisible === null || isVisible === 'false') {
         const section = document.getElementById('analyticsSection');
         const btn = document.getElementById('analyticsToggleBtn');
@@ -681,174 +715,219 @@ window.loadAnalyticsVisibility = function() {
 };
 
 // ============================================================
-//  11. WEATHER SETTINGS - เฉพาะ Global (Per-Board ใช้ใน sensors.js)
-// ============================================================
-
-/**
- * บันทึกการตั้งค่าสภาพอากาศ (Global - ใช้ใน Settings Modal)
- * ⚠️ ฟังก์ชันนี้ใช้สำหรับ Global Weather เท่านั้น
- * สำหรับ Per-Board Weather ใช้ฟังก์ชันใน sensors.js
- */
-window.saveWeatherPref = function() {
-    const fields = document.querySelectorAll('.weather-field:checked');
-    const selected = Array.from(fields).map(cb => cb.value);
-    
-    localStorage.setItem('weatherFields', JSON.stringify(selected));
-    
-    const attach = document.getElementById('attachWeatherToReport');
-    if (attach) {
-        localStorage.setItem('attachWeatherToReport', attach.checked ? 'true' : 'false');
-    }
-    
-    showToast('✅ บันทึกการตั้งค่าสภาพอากาศเรียบร้อยแล้ว');
-};
-
-/**
- * โหลดการตั้งค่าสภาพอากาศ (Global)
- */
-window.loadWeatherPref = function() {
-    const saved = localStorage.getItem('weatherFields');
-    if (saved) {
-        try {
-            const fields = JSON.parse(saved);
-            document.querySelectorAll('.weather-field').forEach(cb => {
-                cb.checked = fields.includes(cb.value);
-            });
-        } catch(e) {
-            console.warn('⚠️ โหลด weatherFields ไม่สำเร็จ:', e);
-        }
-    }
-    
-    const attach = localStorage.getItem('attachWeatherToReport');
-    if (attach !== null) {
-        const el = document.getElementById('attachWeatherToReport');
-        if (el) el.checked = attach === 'true';
-    }
-};
-
-/**
- * ฟังก์ชันดึงค่าสภาพอากาศที่เลือก (ใช้ในรายงาน)
- * @param {string} type - 'global' หรือ 'board'
- * @returns {string[]} รายการฟิลด์ที่เลือก
- */
-window.getSelectedWeatherFields = function(type = 'global') {
-    const prefix = type === 'board' ? 'board' : '';
-    const key = prefix ? 'boardWeatherFields' : 'weatherFields';
-    const saved = localStorage.getItem(key);
-    
-    if (saved) {
-        try {
-            return JSON.parse(saved);
-        } catch(e) {
-            console.warn('⚠️ getSelectedWeatherFields parse error:', e);
-            return ['temp', 'humidity', 'description'];
-        }
-    }
-    return ['temp', 'humidity', 'description'];
-};
-
-/**
- * ตรวจสอบว่าแนบสภาพอากาศในรายงานหรือไม่
- * @param {string} type - 'global' หรือ 'board'
- * @returns {boolean}
- */
-window.isWeatherAttachedToReport = function(type = 'global') {
-    const key = type === 'board' ? 'boardAttachWeatherToReport' : 'attachWeatherToReport';
-    const val = localStorage.getItem(key);
-    return val === 'true';
-};
-
-/**
- * ฟังก์ชันดึงข้อมูลสภาพอากาศแบบเต็ม (ใช้ในรายงาน)
- */
-window.getWeatherReportText = function(weatherData, type = 'global') {
-    if (!weatherData || typeof weatherData !== 'object') {
-        return 'ไม่มีข้อมูลสภาพอากาศ';
-    }
-    
-    const fields = getSelectedWeatherFields(type);
-    const parts = [];
-    
-    const fieldMap = {
-        'temp': `🌡️ ${weatherData.temp ?? weatherData.temperature ?? 'N/A'}°C`,
-        'humidity': `💧 ${weatherData.humidity ?? 'N/A'}%`,
-        'description': `🌤️ ${weatherData.description ?? weatherData.weather ?? 'N/A'}`,
-        'wind': `💨 ${weatherData.wind ?? weatherData.windSpeed ?? 'N/A'} km/h`,
-        'pressure': `📊 ${weatherData.pressure ?? weatherData.pressure ?? 'N/A'} hPa`,
-        'feels_like': `🌡️ รู้สึก ${weatherData.feels_like ?? weatherData.feelsLike ?? 'N/A'}°C`,
-        'sunrise': `🌅 ${weatherData.sunrise ?? 'N/A'}`,
-        'sunset': `🌇 ${weatherData.sunset ?? 'N/A'}`
-    };
-    
-    fields.forEach(field => {
-        if (fieldMap[field]) {
-            parts.push(fieldMap[field]);
-        }
-    });
-    
-    return parts.length > 0 ? parts.join(' | ') : 'ไม่มีข้อมูลสภาพอากาศ';
-};
-
-// ============================================================
-//  12. TOAST NOTIFICATION
-// ============================================================
-window.showToast = function(message, duration = 3000) {
-    const old = document.querySelector('.custom-toast');
-    if (old) old.remove();
-    
-    const toast = document.createElement('div');
-    toast.className = 'custom-toast';
-    toast.style.cssText = `
-        position: fixed;
-        bottom: 20px;
-        left: 50%;
-        transform: translateX(-50%);
-        background: #0d2b1a;
-        color: white;
-        padding: 12px 24px;
-        border-radius: 12px;
-        font-weight: 600;
-        z-index: 99999;
-        box-shadow: 0 8px 24px rgba(0,0,0,0.3);
-        animation: slideUp 0.3s ease;
-        max-width: 90%;
-        text-align: center;
-        border: 1px solid rgba(255,255,255,0.1);
-    `;
-    toast.textContent = message;
-    document.body.appendChild(toast);
-    
-    setTimeout(() => {
-        toast.style.opacity = '0';
-        toast.style.transform = 'translateX(-50%) translateY(20px)';
-        toast.style.transition = 'all 0.3s ease';
-        setTimeout(() => toast.remove(), 300);
-    }, duration);
-};
-
-// ============================================================
-//  13. CSS animation สำหรับ Toast
-// ============================================================
-(function injectToastStyles() {
-    if (document.querySelector('#toast-style')) return;
-    
-    const style = document.createElement('style');
-    style.id = 'toast-style';
-    style.textContent = `
-        @keyframes slideUp {
-            from { opacity: 0; transform: translateX(-50%) translateY(20px); }
-            to { opacity: 1; transform: translateX(-50%) translateY(0); }
-        }
-    `;
-    document.head.appendChild(style);
-})();
-
-// ============================================================
-//  14. EXPORT
+//  11. EXPORT
 // ============================================================
 window.waitForModules = waitForModules;
 window.startApp = startApp;
 window.loadChartVisibility = loadChartVisibility;
 window.loadAnalyticsVisibility = loadAnalyticsVisibility;
 
-console.log("✅ main.js พร้อมทำงาน (เวอร์ชัน 2.6 - Cleaned)");
+// ============================================================
+//  12. เริ่มต้นเมื่อ DOM พร้อม
+// ============================================================
+if (document.readyState === 'loading') {
+    console.log("⏳ รอ DOM โหลด...");
+    document.addEventListener('DOMContentLoaded', function() {
+        setTimeout(() => {
+            if (typeof window.addAlertManagementButtons === 'function') {
+                window.addAlertManagementButtons();
+            }
+        }, 1500);
+        startApp();
+        // ✅ โหลดสถานะการแสดงกราฟ (ซ่อนเป็นค่าเริ่มต้น)
+        setTimeout(loadChartVisibility, 800);
+        // ✅ โหลดสถานะการแสดง Analytics (ซ่อนเป็นค่าเริ่มต้น)
+        setTimeout(loadAnalyticsVisibility, 900);
+    });
+} else {
+    console.log("✅ DOM โหลดเสร็จแล้ว");
+    setTimeout(() => {
+        if (typeof window.addAlertManagementButtons === 'function') {
+            window.addAlertManagementButtons();
+        }
+    }, 1500);
+    setTimeout(startApp, 100);
+    // ✅ โหลดสถานะการแสดงกราฟ (ซ่อนเป็นค่าเริ่มต้น)
+    setTimeout(loadChartVisibility, 800);
+    // ✅ โหลดสถานะการแสดง Analytics (ซ่อนเป็นค่าเริ่มต้น)
+    setTimeout(loadAnalyticsVisibility, 900);
+}
+// ============================================================
+//  GLOBAL ALERT SETTINGS - APPLY TO ALL DEVICES
+//  เพิ่มใน core.js หรือ main.js
+// ============================================================
+
+window.applyGlobalAlertSettings = async function() {
+    if (!window.db) {
+        alert("❌ ระบบฐานข้อมูลยังไม่พร้อม");
+        return;
+    }
+
+    // ✅ อ่านค่าจากฟอร์ม
+    const limitInput = document.getElementById('globalAlertLimit');
+    const intervalInput = document.getElementById('globalAlertInterval');
+    
+    const limit = parseInt(limitInput?.value) || 3;
+    const interval = parseInt(intervalInput?.value) || 5;
+
+    if (limit < 1 || interval < 1) {
+        alert("⚠️ กรุณากรอกค่าที่ถูกต้อง (Limit และ Interval ต้องมากกว่า 0)");
+        return;
+    }
+
+    // ✅ ยืนยันการดำเนินการ
+    if (!confirm(
+        `⚠️ ยืนยันการปรับใช้ค่ากับอุปกรณ์ทั้งหมด?\n\n` +
+        `📊 Limit: ${limit} ครั้ง\n` +
+        `⏱️ Interval: ${interval} นาที\n\n` +
+        `❌ การดำเนินการนี้จะเปลี่ยนแปลงการตั้งค่าของทุกอุปกรณ์ในระบบ!\n` +
+        `คุณต้องการดำเนินการต่อใช่หรือไม่?`
+    )) {
+        return;
+    }
+
+    try {
+        // ✅ แสดงสถานะกำลังดำเนินการ
+        const resultDiv = document.getElementById('globalAlertResult');
+        if (resultDiv) {
+            resultDiv.style.display = 'block';
+            resultDiv.className = 'result-box info';
+            resultDiv.innerHTML = '⏳ กำลังปรับใช้ค่ากับอุปกรณ์ทั้งหมด...';
+        }
+
+        // ✅ 1. บันทึกค่าเริ่มต้นไว้ที่ settings
+        await window.set(window.ref(window.db, 'settings/global_alert_defaults'), {
+            limit: limit,
+            interval: interval,
+            updatedAt: new Date().toISOString()
+        });
+
+        // ✅ 2. ดึงรายการอุปกรณ์ทั้งหมด
+        const snapshot = await window.get(window.ref(window.db, 'device_configs'));
+        if (!snapshot.exists()) {
+            if (resultDiv) {
+                resultDiv.className = 'result-box warning';
+                resultDiv.innerHTML = '📭 ไม่มีอุปกรณ์ในระบบ';
+            }
+            return;
+        }
+
+        const configs = snapshot.val();
+        let successCount = 0;
+        let failCount = 0;
+        const failedDevices = [];
+
+        // ✅ 3. อัปเดตทุกอุปกรณ์ (ยกเว้นบอร์ด)
+        for (const [id, config] of Object.entries(configs)) {
+            if (config.type === 'board') continue; // ข้ามบอร์ด
+            
+            try {
+                await window.update(window.ref(window.db, `device_configs/${id}`), {
+                    alertLimit: limit,
+                    alertInterval: interval,
+                    updatedAt: new Date().toISOString()
+                });
+                successCount++;
+                
+                // ✅ อัปเดตในหน่วยความจำด้วย
+                if (deviceConfigs[id]) {
+                    deviceConfigs[id].alertLimit = limit;
+                    deviceConfigs[id].alertInterval = interval;
+                    deviceConfigs[id].updatedAt = new Date().toISOString();
+                }
+            } catch (err) {
+                failCount++;
+                failedDevices.push(id);
+                console.error(`❌ อัปเดต ${id} ล้มเหลว:`, err);
+            }
+        }
+
+        // ✅ 4. แสดงผลลัพธ์
+        const resultDiv2 = document.getElementById('globalAlertResult');
+        if (resultDiv2) {
+            resultDiv2.style.display = 'block';
+            if (failCount === 0) {
+                resultDiv2.className = 'result-box success';
+                resultDiv2.innerHTML = `
+                    ✅ ปรับใช้ค่าเริ่มต้นสำเร็จ!\n
+                    📊 อัปเดต ${successCount} อุปกรณ์\n
+                    📌 Limit: ${limit} ครั้ง | Interval: ${interval} นาที
+                `;
+            } else {
+                resultDiv2.className = 'result-box error';
+                resultDiv2.innerHTML = `
+                    ⚠️ ปรับใช้สำเร็จ ${successCount} รายการ, ล้มเหลว ${failCount} รายการ\n
+                    ❌ อุปกรณ์ที่ล้มเหลว: ${failedDevices.join(', ')}
+                `;
+            }
+        }
+
+        // ✅ 5. รีเฟรช UI
+        if (typeof renderDeviceTable === 'function') renderDeviceTable();
+        if (typeof renderBoardTable === 'function') renderBoardTable();
+        if (typeof renderSummaryTable === 'function') renderSummaryTable();
+        if (typeof updateStandaloneAlertPanel === 'function') updateStandaloneAlertPanel();
+
+        // ✅ 6. แจ้งเตือนเสร็จสิ้น
+        setTimeout(() => {
+            alert(`✅ ปรับใช้ค่าเริ่มต้นสำเร็จ!\n\n📊 อัปเดต ${successCount} อุปกรณ์\n📌 Limit: ${limit} ครั้ง\n⏱️ Interval: ${interval} นาที`);
+        }, 500);
+
+    } catch (error) {
+        console.error("❌ applyGlobalAlertSettings error:", error);
+        const resultDiv = document.getElementById('globalAlertResult');
+        if (resultDiv) {
+            resultDiv.style.display = 'block';
+            resultDiv.className = 'result-box error';
+            resultDiv.innerHTML = `❌ เกิดข้อผิดพลาด: ${error.message}`;
+        }
+        alert("❌ เกิดข้อผิดพลาด: " + error.message);
+    }
+};
+
+// ============================================================
+//  เพิ่ม CSS สำหรับ Result Box (ถ้ายังไม่มี)
+// ============================================================
+function addGlobalAlertResultStyles() {
+    const style = document.createElement('style');
+    style.textContent = `
+        .result-box {
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-top: 15px;
+            display: none;
+            font-weight: 600;
+            white-space: pre-wrap;
+            line-height: 1.6;
+        }
+        .result-box.success {
+            display: block;
+            background: #ecfdf5;
+            border: 2px solid #34d399;
+            color: #065f46;
+        }
+        .result-box.error {
+            display: block;
+            background: #fef2f2;
+            border: 2px solid #f87171;
+            color: #991b1b;
+        }
+        .result-box.warning {
+            display: block;
+            background: #fffbeb;
+            border: 2px solid #fbbf24;
+            color: #92400e;
+        }
+        .result-box.info {
+            display: block;
+            background: #eff6ff;
+            border: 2px solid #60a5fa;
+            color: #1e40af;
+        }
+    `;
+    document.head.appendChild(style);
+}
+
+// ✅ เรียกใช้ตอนเริ่มต้น
+setTimeout(addGlobalAlertResultStyles, 500);
+console.log("✅ main.js พร้อมทำงาน (เวอร์ชัน 2.4)");

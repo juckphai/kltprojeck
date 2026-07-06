@@ -1,6 +1,6 @@
 // ============================================================
 //  KLT KLTSSCOKE Station - Core Module
-//  Version: 2.6 (Per-Board Weather Support + PM2.5)
+//  Version: 2.6 (Auto-Dismiss & Auto-Reset Support)
 // ============================================================
 
 // ============================================================
@@ -38,6 +38,12 @@ let telegramEnabled = false;
 let isWeatherLoading = false;
 let lastWeatherUpdate = 0;
 const WEATHER_UPDATE_INTERVAL = 600000; // 10 นาที
+
+// ============================================================
+//  1.2 AUTO-DISMISS & AUTO-RESET DEFAULT VALUES
+// ============================================================
+window.AUTO_DISMISS_ALERT_TIME = 5 * 60 * 1000; // 5 นาที
+window.AUTO_ACK_RESET_TIME = 5 * 60 * 1000; // 5 นาที
 
 // ============================================================
 //  2. DEFAULT LEVELS CONFIG
@@ -114,16 +120,6 @@ const SENSOR_TEMPLATES = {
             normal: { min: 20, max: 49, label: 'ฝนตก' },
             high: { min: 50, max: 99, label: 'ฝนหนัก' },
             very_high: { min: 100, max: 999, label: 'ฝนหนักมาก' }
-        }
-    },
-    pm25: {
-        label: '🌫️ PM 2.5 (ฝุ่นละออง)',
-        levels: {
-            very_low: { min: 0, max: 15, label: 'ดี' },
-            low: { min: 16, max: 25, label: 'ปานกลาง' },
-            normal: { min: 26, max: 37, label: 'มีผลต่อสุขภาพ' },
-            high: { min: 38, max: 50, label: 'ไม่ดี' },
-            very_high: { min: 51, max: 999, label: 'แย่/อันตราย' }
         }
     }
 };
@@ -765,7 +761,7 @@ async function renderUserTable() {
 }
 
 // ============================================================
-//  10. WEATHER FUNCTIONS - REFRESH & LOAD (UPDATED - NO BLINK + PM2.5)
+//  10. WEATHER FUNCTIONS - REFRESH & LOAD (UPDATED - NO BLINK)
 // ============================================================
 
 // ฟังก์ชันรีเฟรชการ์ดสภาพอากาศ (Per-Board) - ใช้ loadWeatherInfo แทน
@@ -780,75 +776,7 @@ window.refreshWeatherCards = function() {
 };
 
 // ============================================================
-//  10.1 FETCH WEATHER DATA - UPDATED WITH PM2.5
-// ============================================================
-async function fetchWeatherData(lat, lon) {
-    if (!lat || !lon) return null;
-    try {
-        // ดึงข้อมูลสภาพอากาศหลัก
-        const weatherUrl = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&units=metric&lang=th&appid=${WEATHER_API_KEY}`;
-        const weatherRes = await fetch(weatherUrl);
-        if (!weatherRes.ok) {
-            throw new Error(`Weather HTTP ${weatherRes.status}`);
-        }
-        const weatherData = await weatherRes.json();
-        
-        // ✅ ดึง PM 2.5 จาก Air Pollution API จริง
-        try {
-            const airUrl = `https://api.openweathermap.org/data/2.5/air_pollution?lat=${lat}&lon=${lon}&appid=${WEATHER_API_KEY}`;
-            const airRes = await fetch(airUrl);
-            if (airRes.ok) {
-                const airData = await airRes.json();
-                if (airData.list && airData.list[0] && airData.list[0].components) {
-                    weatherData.pm25 = airData.list[0].components.pm2_5;
-                    console.log(`🌫️ PM 2.5 (API): ${weatherData.pm25} µg/m³`);
-                } else {
-                    // ถ้าไม่มีข้อมูล components ใช้ค่าจำลอง
-                    weatherData.pm25 = 25.5;
-                    console.log(`⚠️ ไม่มีข้อมูล PM 2.5 จาก API ใช้ค่าจำลอง: 25.5`);
-                }
-            } else {
-                // ถ้า API ไม่ตอบสนอง ใช้ค่าจำลอง
-                weatherData.pm25 = 25.5;
-                console.log(`⚠️ Air Pollution API ไม่ตอบสนอง (${airRes.status}) ใช้ค่าจำลอง: 25.5`);
-            }
-        } catch (airErr) {
-            console.warn("⚠️ Air Pollution API Error:", airErr.message);
-            weatherData.pm25 = 25.5;
-            console.log(`ℹ️ ใช้ค่าจำลอง PM 2.5: 25.5 µg/m³`);
-        }
-        
-        return weatherData;
-    } catch (err) {
-        console.warn("❌ Weather API Error:", err.message);
-        return null;
-    }
-}
-
-// ============================================================
-//  10.2 GET PM2.5 COLOR AND LABEL
-// ============================================================
-function getPM25Status(pm25Value) {
-    if (pm25Value === null || pm25Value === undefined) {
-        return { color: '#94a3b8', label: 'ไม่ทราบ', emoji: '❓' };
-    }
-    if (pm25Value <= 15) {
-        return { color: '#22c55e', label: 'ดี', emoji: '🟢' };
-    } else if (pm25Value <= 25) {
-        return { color: '#fbbf24', label: 'ปานกลาง', emoji: '🟡' };
-    } else if (pm25Value <= 37) {
-        return { color: '#f59e0b', label: 'มีผลต่อสุขภาพ', emoji: '🟠' };
-    } else if (pm25Value <= 50) {
-        return { color: '#fb923c', label: 'ไม่ดี', emoji: '🟧' };
-    } else if (pm25Value <= 75) {
-        return { color: '#ef4444', label: 'แย่', emoji: '🔴' };
-    } else {
-        return { color: '#7f1d1d', label: 'อันตราย', emoji: '⛔' };
-    }
-}
-
-// ============================================================
-//  10.3 LOAD WEATHER INFO - UPDATED (อัปเดตแทนการสร้างใหม่)
+//  10.1 LOAD WEATHER INFO - UPDATED (อัปเดตแทนการสร้างใหม่)
 // ============================================================
 async function loadWeatherInfo() {
     if (!window.db) {
@@ -1054,18 +982,13 @@ async function loadWeatherInfo() {
 }
 
 // ============================================================
-//  10.4 UPDATE WEATHER CARD CONTENT - UPDATED WITH PM2.5
+//  10.2 UPDATE WEATHER CARD CONTENT - ฟังก์ชันใหม่ (อัปเดตเฉพาะเนื้อหา)
 // ============================================================
 function updateWeatherCardContent(card, boardId, config, data) {
     if (!card || !data) return;
     
     const boardConfig = deviceConfigs[boardId];
     const isBoardOnline = boardConfig?.status === 'online';
-    
-    // ✅ ดึงค่า PM 2.5
-    const pm25Value = (data.pm25 !== undefined && data.pm25 !== null) ? data.pm25 : null;
-    const pm25Display = pm25Value !== null ? pm25Value.toFixed(1) : '--';
-    const pm25Status = getPM25Status(pm25Value);
     
     try {
         // อัปเดตชื่อบอร์ดและสถานะ
@@ -1107,7 +1030,7 @@ function updateWeatherCardContent(card, boardId, config, data) {
             iconEl.src = `https://openweathermap.org/img/wn/${data.weather[0].icon}@2x.png`;
         }
         
-        // อัปเดตฟิลด์ต่างๆ รวมถึง PM 2.5
+        // อัปเดตฟิลด์ต่างๆ
         const f = config.weather_config?.fields || {};
         const fieldsEl = card.querySelector('.weather-fields');
         if (fieldsEl) {
@@ -1116,20 +1039,7 @@ function updateWeatherCardContent(card, boardId, config, data) {
             if (f.humidity) html += `<div>💧 ${data.main.humidity}%</div>`;
             if (f.wind) html += `<div>🌬️ ${data.wind.speed.toFixed(1)}m/s</div>`;
             if (f.pressure) html += `<div>⏲️ ${data.main.pressure}hPa</div>`;
-            // ✅ PM 2.5 field
-            if (f.pm25 && pm25Value !== null) {
-                html += `
-                    <div style="display: flex; align-items: center; gap: 4px;">
-                        <span>🌫️ PM 2.5:</span>
-                        <span style="font-weight: bold; color: ${pm25Status.color};">${pm25Display}</span>
-                        <span style="font-size: 0.6rem; color: ${pm25Status.color};">µg/m³</span>
-                        <span style="font-size: 0.55rem; background: ${pm25Status.color}22; color: ${pm25Status.color}; padding: 0 6px; border-radius: 8px; border: 1px solid ${pm25Status.color}44;">${pm25Status.emoji} ${pm25Status.label}</span>
-                    </div>
-                `;
-            } else if (f.pm25) {
-                html += `<div style="color: #64748b;">🌫️ PM 2.5: -- µg/m³</div>`;
-            }
-            if (!f.temp && !f.humidity && !f.wind && !f.pressure && !f.pm25) {
+            if (!f.temp && !f.humidity && !f.wind && !f.pressure) {
                 html = `<div style="grid-column: span 2; color: #64748b; font-style: italic;">ไม่มีฟิลด์ที่เลือกแสดง</div>`;
             }
             fieldsEl.innerHTML = html;
@@ -1154,7 +1064,7 @@ function updateWeatherCardContent(card, boardId, config, data) {
 }
 
 // ============================================================
-//  10.5 UPDATE WEATHER CARD ERROR
+//  10.3 UPDATE WEATHER CARD ERROR - ฟังก์ชันใหม่
 // ============================================================
 function updateWeatherCardError(card, boardId, config) {
     if (!card) return;
@@ -1188,7 +1098,7 @@ function updateWeatherCardError(card, boardId, config) {
 }
 
 // ============================================================
-//  10.6 RENDER WEATHER CARD - UPDATED WITH PM2.5
+//  10.4 RENDER WEATHER CARD - ปรับปรุงให้มี data attributes
 // ============================================================
 function renderWeatherCard(boardId, boardName, config, data) {
     const container = document.getElementById('weatherCardsContainer');
@@ -1199,11 +1109,6 @@ function renderWeatherCard(boardId, boardName, config, data) {
     const isBoardOnline = boardConfig?.status === 'online';
     const onlineStatus = isBoardOnline ? '🟢' : '🔴';
     const locationName = config.weather_config?.locationName || 'ไม่ระบุ';
-    
-    // ✅ ดึงค่า PM 2.5
-    const pm25Value = (data.pm25 !== undefined && data.pm25 !== null) ? data.pm25 : null;
-    const pm25Display = pm25Value !== null ? pm25Value.toFixed(1) : '--';
-    const pm25Status = getPM25Status(pm25Value);
     
     const cardHtml = `
         <div class="weather-board-card" data-board-id="${boardId}" style="
@@ -1247,15 +1152,7 @@ function renderWeatherCard(boardId, boardName, config, data) {
                 ${f.humidity ? `<div>💧 ${data.main.humidity}%</div>` : ''}
                 ${f.wind ? `<div>🌬️ ${data.wind.speed.toFixed(1)}m/s</div>` : ''}
                 ${f.pressure ? `<div>⏲️ ${data.main.pressure}hPa</div>` : ''}
-                ${f.pm25 && pm25Value !== null ? `
-                    <div style="display: flex; align-items: center; gap: 4px;">
-                        <span>🌫️ PM 2.5:</span>
-                        <span style="font-weight: bold; color: ${pm25Status.color};">${pm25Display}</span>
-                        <span style="font-size: 0.6rem; color: ${pm25Status.color};">µg/m³</span>
-                        <span style="font-size: 0.55rem; background: ${pm25Status.color}22; color: ${pm25Status.color}; padding: 0 6px; border-radius: 8px; border: 1px solid ${pm25Status.color}44;">${pm25Status.emoji} ${pm25Status.label}</span>
-                    </div>
-                ` : (f.pm25 ? `<div style="color: #64748b;">🌫️ PM 2.5: -- µg/m³</div>` : '')}
-                ${!f.temp && !f.humidity && !f.wind && !f.pressure && !f.pm25 ? 
+                ${!f.temp && !f.humidity && !f.wind && !f.pressure ? 
                     `<div style="grid-column: span 2; color: #64748b; font-style: italic;">ไม่มีฟิลด์ที่เลือกแสดง</div>` : ''}
             </div>
             
@@ -1272,7 +1169,7 @@ function renderWeatherCard(boardId, boardName, config, data) {
 }
 
 // ============================================================
-//  10.7 RENDER WEATHER CARD ERROR
+//  10.5 RENDER WEATHER CARD ERROR - ปรับปรุงให้มี data attributes
 // ============================================================
 function renderWeatherCardError(boardId, boardName, config) {
     const container = document.getElementById('weatherCardsContainer');
@@ -1317,7 +1214,7 @@ function renderWeatherCardError(boardId, boardName, config) {
 }
 
 // ============================================================
-//  10.8 WEATHER LEGACY FUNCTIONS
+//  10.6 WEATHER LEGACY FUNCTIONS (ปรับปรุงให้รองรับ Per-Board)
 // ============================================================
 
 function updateWeatherUI(config, weatherData) {
@@ -1371,6 +1268,24 @@ function updateWeatherDetailVisibility(fields) {
     }
     if (pressureEl) {
         pressureEl.style.display = fields.pressure ? 'block' : 'none';
+    }
+}
+
+async function fetchWeatherData(lat, lon) {
+    if (!lat || !lon) return null;
+    try {
+        const url = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&units=metric&lang=th&appid=${WEATHER_API_KEY}`;
+        console.log(`🌤️ กำลังโหลดข้อมูลสภาพอากาศ: ${url}`);
+        const res = await fetch(url);
+        if (!res.ok) {
+            throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+        }
+        const data = await res.json();
+        console.log("✅ โหลดข้อมูลสภาพอากาศสำเร็จ:", data.name);
+        return data;
+    } catch (err) {
+        console.warn("❌ Weather API Error:", err.message);
+        return null;
     }
 }
 
@@ -1446,8 +1361,7 @@ window.deleteWeatherLocation = async function() {
                 humidity: false,
                 description: false,
                 wind: false,
-                pressure: false,
-                pm25: false
+                pressure: false
             },
             updatedAt: new Date().toISOString()
         });
@@ -1536,8 +1450,9 @@ function initWeatherDashboard() {
     }
 }
 
+
 // ============================================================
-//  11. FIREBASE LISTENERS (MAIN)
+//  11. FIREBASE LISTENERS (MAIN) - UPDATED
 // ============================================================
 function initFirebaseListeners() {
     if (!window.db) return;
@@ -1736,7 +1651,7 @@ function initializeAllFeatures() {
         console.warn("⚠️ startSensorStatusMonitor ยังไม่พร้อม");
     }
     
-    console.log("✅ ระบบพร้อมทำงาน (เวอร์ชัน 2.6 - Per-Board Weather Support + PM2.5)");
+    console.log("✅ ระบบพร้อมทำงาน (เวอร์ชัน 2.6 - Auto-Dismiss & Auto-Reset Support)");
     console.log("   🔹 สถานะเซนเซอร์อ้างอิงจากสถานะบอร์ด");
     console.log("   🔹 แสดงสถานะออฟไลน์พร้อมเวลาที่อัปเดตล่าสุด");
     console.log("   🔹 แสดงค่าที่ค้างอยู่เมื่อบอร์ดออฟไลน์");
@@ -1744,10 +1659,10 @@ function initializeAllFeatures() {
     console.log("   🔹 ระบบ Global Mute พร้อมทำงาน");
     console.log("   🔹 ระบบตรวจสอบสถานะเซนเซอร์อัตโนมัติ (Stale Data Detection) ทำงานทุก 15 วินาที");
     console.log("   🔹 🌤️ รองรับการแสดงสภาพอากาศแบบแยกตามบอร์ด (Per-Board Weather)");
-    console.log("   🔹 🌫️ รองรับการแสดงค่า PM 2.5 จาก Air Pollution API");
     console.log("   🔹 🔒 ใช้ Set() ตรวจสอบพิกัดซ้ำ ป้องกันการแสดงการ์ดซ้ำ");
     console.log("   🔹 🔒 ใช้ isWeatherLoading ป้องกันการโหลดซ้อน");
     console.log("   🔹 🔄 อัปเดต Weather Cards แบบไม่กระพริบ (อัปเดตเฉพาะเนื้อหา)");
+    console.log("   🔹 ⏰ รองรับ Auto-Dismiss & Auto-Reset (ตั้งเวลาปิดแผงแจ้งเตือนและรีเซ็ตอัตโนมัติ)");
 }
 
 // ============================================================
@@ -1792,6 +1707,14 @@ function initCoreModule() {
             } else {
                 console.warn("⚠️ loadGlobalMuteStatus ยังไม่พร้อม");
             }
+            
+            // ✅✅✅ โหลดค่า Auto-Dismiss & Auto-Reset ✅✅✅
+            if (typeof loadAutoDismissResetSettings === 'function') {
+                loadAutoDismissResetSettings();
+            } else {
+                console.warn("⚠️ loadAutoDismissResetSettings ยังไม่พร้อม");
+            }
+            
             setTimeout(() => {
                 if (typeof loadLoggingConfig === 'function') {
                     loadLoggingConfig();
@@ -1918,19 +1841,17 @@ window.SENSOR_TEMPLATES = SENSOR_TEMPLATES;
 // ฟังก์ชันที่ต้อง expose เพิ่มเติม
 window.loadWeatherInfo = loadWeatherInfo;
 window.refreshWeatherCards = refreshWeatherCards;
-window.saveBoardWeatherConfig = saveBoardWeatherConfig;
-window.deleteBoardWeatherConfig = deleteBoardWeatherConfig;
-window.getBoardWeatherConfig = getBoardWeatherConfig;
 window.renderWeatherCard = renderWeatherCard;
 window.renderWeatherCardError = renderWeatherCardError;
 window.updateWeatherCardContent = updateWeatherCardContent;
 window.updateWeatherCardError = updateWeatherCardError;
-window.fetchWeatherData = fetchWeatherData;
-window.getPM25Status = getPM25Status;
 
 // ============================================================
-//  14. FALLBACK FUNCTIONS
+//  14. FALLBACK FUNCTIONS (เผื่อฟังก์ชันจากไฟล์อื่นยังไม่โหลด)
 // ============================================================
+
+// ✅ Fallback สำหรับฟังก์ชันที่อาจยังไม่โหลด
+// ตรวจสอบและสร้าง fallback ถ้ายังไม่มี
 
 if (typeof window.renderSummaryTable !== 'function') {
     window.renderSummaryTable = function() {
@@ -2121,38 +2042,177 @@ if (typeof window.updateChartStructure !== 'function') {
 }
 
 // ============================================================
-//  PLACEHOLDER FUNCTIONS ที่อาจถูกเรียกจากที่อื่น
+//  15. AUTO-DISMISS & AUTO-RESET SETTINGS - UI FUNCTIONS
 // ============================================================
-function saveBoardWeatherConfig(boardId, config) {
-    console.log("💾 saveBoardWeatherConfig:", boardId, config);
-    if (!window.db) return;
+
+// ✅ โหลดค่าจาก Firebase
+async function loadAutoDismissResetSettings() {
+    if (!window.db) {
+        console.warn("⚠️ Firebase ยังไม่พร้อม");
+        return;
+    }
+    
     try {
-        window.update(window.ref(window.db, `device_configs/${boardId}/weather_config`), config)
-            .then(() => {
-                console.log(`✅ บันทึก weather_config สำหรับบอร์ด ${boardId} สำเร็จ`);
-                setTimeout(loadWeatherInfo, 500);
-            })
-            .catch(err => console.error("❌ saveBoardWeatherConfig error:", err));
-    } catch(e) { console.error("❌ saveBoardWeatherConfig error:", e); }
+        // โหลด Auto-Dismiss Time
+        const dismissSnap = await window.get(window.ref(window.db, 'settings/auto_dismiss_time'));
+        if (dismissSnap.exists()) {
+            const minutes = dismissSnap.val();
+            window.AUTO_DISMISS_ALERT_TIME = minutes * 60 * 1000;
+            const dismissInput = document.getElementById('autoDismissTime');
+            const dismissDisplay = document.getElementById('currentDismissTimeDisplay');
+            if (dismissInput) dismissInput.value = minutes;
+            if (dismissDisplay) dismissDisplay.textContent = minutes;
+            console.log(`✅ โหลด Auto-Dismiss Time: ${minutes} นาที`);
+        } else {
+            // ถ้ายังไม่มีใน Firebase ให้ใช้ค่าเริ่มต้น 5 นาที
+            window.AUTO_DISMISS_ALERT_TIME = 5 * 60 * 1000;
+            const dismissInput = document.getElementById('autoDismissTime');
+            const dismissDisplay = document.getElementById('currentDismissTimeDisplay');
+            if (dismissInput) dismissInput.value = 5;
+            if (dismissDisplay) dismissDisplay.textContent = 5;
+            console.log(`📭 ยังไม่มีค่า Auto-Dismiss Time ใช้ค่าเริ่มต้น 5 นาที`);
+        }
+        
+        // โหลด Auto-Reset Time
+        const resetSnap = await window.get(window.ref(window.db, 'settings/auto_reset_time'));
+        if (resetSnap.exists()) {
+            const minutes = resetSnap.val();
+            window.AUTO_ACK_RESET_TIME = minutes * 60 * 1000;
+            const resetInput = document.getElementById('autoResetTime');
+            const resetDisplay = document.getElementById('currentResetTimeDisplay');
+            if (resetInput) resetInput.value = minutes;
+            if (resetDisplay) resetDisplay.textContent = minutes;
+            console.log(`✅ โหลด Auto-Reset Time: ${minutes} นาที`);
+        } else {
+            // ถ้ายังไม่มีใน Firebase ให้ใช้ค่าเริ่มต้น 5 นาที
+            window.AUTO_ACK_RESET_TIME = 5 * 60 * 1000;
+            const resetInput = document.getElementById('autoResetTime');
+            const resetDisplay = document.getElementById('currentResetTimeDisplay');
+            if (resetInput) resetInput.value = 5;
+            if (resetDisplay) resetDisplay.textContent = 5;
+            console.log(`📭 ยังไม่มีค่า Auto-Reset Time ใช้ค่าเริ่มต้น 5 นาที`);
+        }
+        
+        console.log('✅ โหลดค่า Auto-Dismiss/Reset สำเร็จ');
+        
+    } catch (error) {
+        console.warn('⚠️ โหลดค่า Auto-Dismiss/Reset ไม่สำเร็จ:', error);
+    }
 }
 
-function deleteBoardWeatherConfig(boardId) {
-    console.log("🗑️ deleteBoardWeatherConfig:", boardId);
-    if (!window.db) return;
-    if (!confirm(`⚠️ ลบการตั้งค่าสภาพอากาศของบอร์ด "${boardId}"?`)) return;
+// ✅ บันทึก Auto-Dismiss Time
+window.saveAutoDismissTime = async function() {
+    const input = document.getElementById('autoDismissTime');
+    if (!input) {
+        console.warn("⚠️ ไม่พบ element autoDismissTime");
+        alert("❌ ไม่พบฟิลด์กรอกข้อมูล กรุณาตรวจสอบหน้าเว็บ");
+        return;
+    }
+    
+    const minutes = parseInt(input.value);
+    if (isNaN(minutes) || minutes < 0 || minutes > 60) {
+        alert('⚠️ กรุณากรอกตัวเลขที่ถูกต้อง (0-60)');
+        input.focus();
+        return;
+    }
+    
     try {
-        window.remove(window.ref(window.db, `device_configs/${boardId}/weather_config`))
-            .then(() => {
-                console.log(`✅ ลบ weather_config ของบอร์ด ${boardId} สำเร็จ`);
-                setTimeout(loadWeatherInfo, 500);
-            })
-            .catch(err => console.error("❌ deleteBoardWeatherConfig error:", err));
-    } catch(e) { console.error("❌ deleteBoardWeatherConfig error:", e); }
-}
+        // ✅ บันทึกไป Firebase
+        await window.set(window.ref(window.db, 'settings/auto_dismiss_time'), minutes);
+        
+        // ✅ โหลดค่ากลับมาเพื่ออัปเดต UI (แสดงค่าที่บันทึกจริง)
+        await loadAutoDismissResetSettings();
+        
+        alert(`✅ บันทึก Auto-Dismiss Time: ${minutes} นาที`);
+        console.log(`✅ Auto-Dismiss Time: ${minutes} นาที`);
+        
+    } catch (error) {
+        console.error('❌ saveAutoDismissTime error:', error);
+        alert('❌ บันทึกไม่สำเร็จ: ' + error.message);
+    }
+};
 
-function getBoardWeatherConfig(boardId) {
-    if (!deviceConfigs || !deviceConfigs[boardId]) return null;
-    return deviceConfigs[boardId].weather_config || null;
-}
+// ✅ บันทึก Auto-Reset Time
+window.saveAutoResetTime = async function() {
+    const input = document.getElementById('autoResetTime');
+    if (!input) {
+        console.warn("⚠️ ไม่พบ element autoResetTime");
+        alert("❌ ไม่พบฟิลด์กรอกข้อมูล กรุณาตรวจสอบหน้าเว็บ");
+        return;
+    }
+    
+    const minutes = parseInt(input.value);
+    if (isNaN(minutes) || minutes < 0 || minutes > 60) {
+        alert('⚠️ กรุณากรอกตัวเลขที่ถูกต้อง (0-60)');
+        input.focus();
+        return;
+    }
+    
+    try {
+        // ✅ บันทึกไป Firebase
+        await window.set(window.ref(window.db, 'settings/auto_reset_time'), minutes);
+        
+        // ✅ โหลดค่ากลับมาเพื่ออัปเดต UI (แสดงค่าที่บันทึกจริง)
+        await loadAutoDismissResetSettings();
+        
+        alert(`✅ บันทึก Auto-Reset Time: ${minutes} นาที`);
+        console.log(`✅ Auto-Reset Time: ${minutes} นาที`);
+        
+    } catch (error) {
+        console.error('❌ saveAutoResetTime error:', error);
+        alert('❌ บันทึกไม่สำเร็จ: ' + error.message);
+    }
+};
 
-console.log("✅ core.js โหลดเรียบร้อย (เวอร์ชัน 2.6 - Per-Board Weather Support + PM2.5)");
+// ✅ ฟังก์ชันรีเซ็ตค่าเป็นค่าเริ่มต้น
+window.resetAutoDismissResetSettings = async function() {
+    if (!confirm('⚠️ ยืนยันรีเซ็ตค่า Auto-Dismiss และ Auto-Reset เป็นค่าเริ่มต้น (5 นาที)?')) {
+        return;
+    }
+    
+    try {
+        // ✅ ลบค่าใน Firebase
+        await window.remove(window.ref(window.db, 'settings/auto_dismiss_time'));
+        await window.remove(window.ref(window.db, 'settings/auto_reset_time'));
+        
+        // ✅ ตั้งค่าเริ่มต้น
+        window.AUTO_DISMISS_ALERT_TIME = 5 * 60 * 1000;
+        window.AUTO_ACK_RESET_TIME = 5 * 60 * 1000;
+        
+        // ✅ อัปเดต UI
+        const dismissInput = document.getElementById('autoDismissTime');
+        const dismissDisplay = document.getElementById('currentDismissTimeDisplay');
+        const resetInput = document.getElementById('autoResetTime');
+        const resetDisplay = document.getElementById('currentResetTimeDisplay');
+        
+        if (dismissInput) dismissInput.value = 5;
+        if (dismissDisplay) dismissDisplay.textContent = 5;
+        if (resetInput) resetInput.value = 5;
+        if (resetDisplay) resetDisplay.textContent = 5;
+        
+        // ✅ รีเซ็ต Timer
+        if (window.alertDismissTimer) {
+            clearTimeout(window.alertDismissTimer);
+            window.alertDismissTimer = null;
+        }
+        
+        // ✅ รีเฟรชแผงแจ้งเตือน
+        if (typeof updateStandaloneAlertPanel === 'function') {
+            updateStandaloneAlertPanel();
+        }
+        
+        alert('✅ รีเซ็ตค่าเรียบร้อย (5 นาที)');
+        console.log('✅ รีเซ็ต Auto-Dismiss/Reset เป็นค่าเริ่มต้น 5 นาที');
+        
+    } catch (error) {
+        console.error('❌ resetAutoDismissResetSettings error:', error);
+        alert('❌ รีเซ็ตไม่สำเร็จ: ' + error.message);
+    }
+};
+
+// ✅ ฟังก์ชันโหลดค่าเมื่อเปิด Settings Modal
+// (ใช้ใน openSettingsManager)
+window.loadAutoDismissResetSettings = loadAutoDismissResetSettings;
+
+console.log("✅ AUTO-DISMISS & AUTO-RESET Settings Functions โหลดเรียบร้อย");
+console.log("✅ core.js โหลดเรียบร้อย (เวอร์ชัน 2.6 - Auto-Dismiss & Auto-Reset Support)");

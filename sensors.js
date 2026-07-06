@@ -1,8 +1,14 @@
 // ============================================================
 //  KLT Smart Farm Station - Sensors Module
-//  Version: 3.1 (Fixed Loading Text + Board Update)
+//  Version: 3.2 (FULL FIXED - Auto Acknowledge + Flood Detection)
 // ============================================================
 
+
+// ✅ Anti-Spam Lock สำหรับป้องกันการแจ้งเตือนซ้ำ
+window.alertLock = {};
+
+// ✅ Auto Acknowledge Reset Time
+window.AUTO_ACK_RESET_TIME = 5 * 60 * 1000; // 5 นาที (ปรับได้)
 // ============================================================
 //  1. DEVICE MANAGEMENT
 // ============================================================
@@ -285,7 +291,7 @@ window.updateSensorModeUI = function(mode) {
 
 // ============================================================
 //  3. RENDER SENSOR MODE SELECTOR (ปรับปรุงให้อ่านง่าย)
-// =============================================
+// ============================================================
 window.renderSensorModeSelector = function() {
     const container = document.getElementById('sensorModeContainer');
     if (!container) {
@@ -313,48 +319,6 @@ window.renderSensorModeSelector = function() {
     updateSensorModeUI(currentMode);
 };
 
-// =============================================
-//  UPDATE SENSOR MODE UI (ปรับปรุงสี Hint ให้อ่านง่าย)
-// =============================================
-window.updateSensorModeUI = function(mode) {
-    const verticalConfig = document.getElementById('ultrasonicVerticalConfig');
-    const horizontalConfig = document.getElementById('ultrasonicHorizontalConfig');
-    const modeHint = document.getElementById('sensorModeHint');
-    const installHeightLabel = document.getElementById('installHeightLabel');
-    const bankHeightLabel = document.getElementById('bankHeightLabel');
-    
-    if (mode === 'vertical') {
-        if (verticalConfig) verticalConfig.style.display = 'block';
-        if (horizontalConfig) horizontalConfig.style.display = 'none';
-        if (modeHint) {
-            // ปรับสี Hint เป็นตัวหนังสือสีน้ำเงินเข้ม บนพื้นฟ้าอ่อน
-            modeHint.innerHTML = `
-                <div style="color: #0d47a1; font-size: 0.85rem; padding: 10px 15px; background: #e3f2fd; border-radius: 8px; border-left: 5px solid #1976d2; line-height: 1.5;">
-                    <b style="font-size: 0.95rem;">📏 โหมดแนวตั้ง (Vertical)</b><br>
-                    ใช้สำหรับวัดระดับน้ำ ของเหลว หรือวัสดุในถัง/บ่อ<br>
-                    <span style="font-size: 0.8rem; color: #1565c0; font-weight: bold;">💡 ระบบจะคำนวณ: ระดับติดตั้ง − ระยะที่วัดได้ = ระดับน้ำจริง</span>
-                </div>
-            `;
-        }
-        if (installHeightLabel) installHeightLabel.textContent = '📏 ระยะติดตั้ง (เซนเซอร์ถึงก้นบ่อ)';
-        if (bankHeightLabel) bankHeightLabel.textContent = '⚠️ ระดับตลิ่ง (วัดจากก้นบ่อขึ้นมา)';
-    } else if (mode === 'horizontal') {
-        if (verticalConfig) verticalConfig.style.display = 'none';
-        if (horizontalConfig) horizontalConfig.style.display = 'block';
-        if (modeHint) {
-            // ปรับสี Hint เป็นตัวหนังสือสีส้มเข้ม บนพื้นส้มอ่อน
-            modeHint.innerHTML = `
-                <div style="color: #bf360c; font-size: 0.85rem; padding: 10px 15px; background: #fff3e0; border-radius: 8px; border-left: 5px solid #fb8c00; line-height: 1.5;">
-                    <b style="font-size: 0.95rem;">📐 โหมดแนวนอน (Horizontal)</b><br>
-                    ใช้สำหรับวัดระยะห่างตรงๆ ตรวจจับวัตถุ หรือวัดความกว้าง<br>
-                    <span style="font-size: 0.8rem; color: #e65100; font-weight: bold;">💡 ระบบจะแสดงค่า "ระยะห่าง" ที่เซนเซอร์อ่านได้โดยตรง</span>
-                </div>
-            `;
-        }
-        if (installHeightLabel) installHeightLabel.textContent = '📏 ระยะอ้างอิงสูงสุด (Max Range)';
-        if (bankHeightLabel) bankHeightLabel.textContent = '⚠️ ระยะเตือน (Warning Range)';
-    }
-};
 // ============================================================
 //  3. CLONE DEVICE
 // ============================================================
@@ -472,9 +436,6 @@ window.bulkCloneDevices = function(ids) {
     updateStatusBarBoardDetails();
 };
 
-// ============================================================
-//  4. LEVEL CONFIG
-// ============================================================
 // ============================================================
 //  4. LEVEL CONFIG - ปรับปรุงสไตล์ Clean & Professional
 // ============================================================
@@ -705,19 +666,6 @@ window.addDynamicLevelRow = function(data = { label: '', min: 0, max: 100, color
     `;
     container.insertAdjacentHTML('beforeend', html);
 };
-
-// ============================================================
-//  ฟังก์ชันอื่นๆ ที่เกี่ยวข้อง (ไม่ต้องแก้)
-// ============================================================
-function loadDynamicLevelsFromArray(levelsArray) {
-    // ... โค้ดเดิม (ไม่ต้องแก้)
-}
-
-function getDynamicLevelsFromUI() {
-    // ... โค้ดเดิม (ไม่ต้องแก้)
-}
-
-// ... ฟังก์ชันอื่นๆ ต่อไปตามเดิม
 
 function loadDynamicLevelsFromArray(levelsArray) {
     const container = document.getElementById('dynamicLevelsContainer');
@@ -1498,6 +1446,7 @@ window.quickAddSensor = async function(sensorId, value, type, detectedBoardId) {
         alert(`❌ ไม่สามารถดำเนินการได้: ${error.message}`);
     }
 };
+
 // ============================================================
 //  7. PROVISIONING (USB)
 // ============================================================
@@ -1797,7 +1746,7 @@ function createSensorCard(container, id, config, boardStatusMap, isBoardOnline, 
 }
 
 // ============================================================
-//  8.2 UPDATE EXISTING SENSOR CARD
+//  8.2 UPDATE EXISTING SENSOR CARD (FULLY FIXED)
 // ============================================================
 function updateSensorCardContent(card, id, config, boardStatusMap, isBoardOnline, isSensorOnline, hasRealData) {
     if (!card) return;
@@ -1951,7 +1900,6 @@ function updateSensorCardContent(card, id, config, boardStatusMap, isBoardOnline
                 }
                 
                 // ✅ diff แสดงข้อมูลเฉพาะเซนเซอร์ (ไม่ซ้ำชื่อบอร์ด)
-                // 🔥 แก้ไข: ตัดข้อความน้ำท่วมออกไปบ้าง เพื่อไม่ให้ซ้ำกับ alert-badge
                 diffHTML = `
                     <div style="font-weight: bold; color: ${detailColor};">
                         ${isFlooding ? '🌊 น้ำล้นตลิ่ง! สูงกว่า ' + overBankAmount.toFixed(2) + ' ซม.' : statusText}
@@ -2077,6 +2025,7 @@ function updateSensorCardContent(card, id, config, boardStatusMap, isBoardOnline
         card.classList.add('warning-alert');
     }
 }
+
 // ============================================================
 //  9. CHART - UPDATED (No Blink with chart.update('none'))
 // ============================================================
@@ -2093,7 +2042,7 @@ function initChart() {
                 title: { 
                     display: true, 
                     text: 'Real-time Data (เฉพาะอุปกรณ์ที่เปิด)',
-                    color: '#0d2b1a',  // ✅ เข้มขึ้น
+                    color: '#0d2b1a',
                     font: {
                         size: 16,
                         weight: 'bold'
@@ -2101,7 +2050,7 @@ function initChart() {
                 },
                 legend: {
                     labels: { 
-                        color: '#1a202c',  // ✅ เข้มขึ้น
+                        color: '#1a202c',
                         font: {
                             size: 12,
                             weight: '600'
@@ -2112,7 +2061,7 @@ function initChart() {
             scales: {
                 x: {
                     ticks: { 
-                        color: '#1a202c',  // ✅ เข้มขึ้น
+                        color: '#1a202c',
                         maxTicksLimit: 15,
                         font: {
                             size: 11,
@@ -2120,19 +2069,19 @@ function initChart() {
                         }
                     },
                     grid: { 
-                        color: 'rgba(0, 0, 0, 0.08)'  // ✅ จางลง
+                        color: 'rgba(0, 0, 0, 0.08)'
                     }
                 },
                 y: {
                     ticks: { 
-                        color: '#1a202c',  // ✅ เข้มขึ้น
+                        color: '#1a202c',
                         font: {
                             size: 11,
                             weight: '500'
                         }
                     },
                     grid: { 
-                        color: 'rgba(0, 0, 0, 0.08)'  // ✅ จางลง
+                        color: 'rgba(0, 0, 0, 0.08)'
                     }
                 }
             }
@@ -2237,6 +2186,7 @@ function updateChartStructure() {
     
     console.log("📊 อัปเดตกราฟ (no blink):", newDatasets.length, "ชุด,", chart.data.labels.length, "จุดเวลา");
 }
+
 // ============================================================
 //  9.2 GET HISTORY FOR CHART
 // ============================================================
@@ -2554,8 +2504,141 @@ window.openHistoryChartForDevice = function(deviceId) {
 };
 
 // ============================================================
-//  10. PROCESS NEW DATA - UPDATED
-//  ✅ ไม่มีการอัปเดตชื่อบอร์ดจาก ESP32
+//  🔧 ฟังก์ชันเสริม: อัปเดตสถานะการ์ดเซนเซอร์
+//  ใช้ใน processNewData สำหรับอัปเดตสถานะการ์ดแบบเรียลไทม์
+// ============================================================
+function updateSensorCardStatus(id, config, waterLevel, rawVal) {
+    const card = document.getElementById(`card_${id}`);
+    if (!card) return;
+    
+    const valEl = document.getElementById(`val_${id}`);
+    const timeEl = document.getElementById(`time_${id}`);
+    const statusBadgeEl = document.querySelector(`#card_${id} .sensor-status-badge`);
+    const levelBadgeEl = document.getElementById(`levelBadge_${id}`);
+    const diffEl = document.getElementById(`diff_${id}`);
+    
+    // ✅ ถ้าเป็น Ultrasonic และมี waterLevel
+    if (config.type === 'ultrasonic' && waterLevel !== null) {
+        const bankHeight = parseFloat(config.bankHeight) || 0;
+        const distanceToBank = bankHeight - waterLevel;
+        const result = evaluateLevelWithCustom(waterLevel, config.levels);
+        
+        // ✅ ตรวจสอบน้ำท่วม (ใช้ Threshold เป็นหลัก)
+        const threshold = config.advancedAlert?.threshold || 0;
+        const isFlooding = waterLevel >= threshold && threshold > 0;
+        
+        // ✅ อัปเดต Status Badge
+        if (statusBadgeEl) {
+            if (isFlooding) {
+                statusBadgeEl.className = 'sensor-status-badge offline';
+                statusBadgeEl.innerHTML = '🌊 น้ำท่วม!';
+                statusBadgeEl.style.color = '#f87171';
+            } else {
+                statusBadgeEl.className = 'sensor-status-badge online';
+                statusBadgeEl.innerHTML = '🟢 กำลังทำงาน';
+                statusBadgeEl.style.color = '#4ade80';
+            }
+        }
+        
+        // ✅ อัปเดต Level Badge
+        if (levelBadgeEl && result) {
+            levelBadgeEl.innerHTML = `
+                <span style="background: ${result.color || '#60a5fa'}; color: white; padding: 2px 10px; border-radius: 12px; font-size: 0.65rem;">
+                    ${result.label || 'ไม่ระบุ'}
+                </span>
+            `;
+        }
+        
+        // ✅ อัปเดต Diff (แสดงรายละเอียด)
+        if (diffEl) {
+            let statusText = isFlooding ? 
+                `🌊 น้ำล้นตลิ่ง! สูงกว่า ${Math.abs(distanceToBank).toFixed(2)} ซม.` :
+                `ระดับน้ำ: ${waterLevel.toFixed(2)} ซม. (อีก ${distanceToBank.toFixed(2)} ซม. ถึงตลิ่ง)`;
+            
+            diffEl.innerHTML = `
+                <div style="font-weight: bold; color: ${isFlooding ? '#f87171' : result.color || '#60a5fa'};">
+                    ${statusText}
+                </div>
+                <div style="color: #94a3b8; font-size: 0.7rem;">
+                    📏 ระยะที่วัดได้: ${rawVal.toFixed(2)} ซม.
+                </div>
+                <div style="color: ${result.color || '#60a5fa'}; font-size: 0.8rem;">
+                    📌 สถานะ: ${result.label || 'ไม่ระบุ'}
+                </div>
+            `;
+        }
+        
+        // ✅ อัปเดตเวลา
+        if (timeEl) {
+            const nowTime = new Date().toLocaleTimeString('th-TH');
+            timeEl.textContent = `🟢 อัปเดต: ${nowTime}`;
+            timeEl.style.color = '#0d6b2a';
+        }
+        
+        // ✅ จัดการ Alert Badge (เพิ่มเติม)
+        let existingAlertBadge = card.querySelector('.alert-badge');
+        if (isFlooding) {
+            if (!existingAlertBadge) {
+                const badge = document.createElement('div');
+                badge.className = 'alert-badge flood';
+                badge.textContent = '🌊 น้ำท่วม!';
+                badge.style.cssText = 'background: #d32f2f; color: white; padding: 4px 12px; border-radius: 20px; font-size: 0.7rem; font-weight: bold; margin-top: 8px; text-align: center; animation: alertPulse 1.5s infinite;';
+                card.appendChild(badge);
+            }
+            card.classList.add('flood-alert');
+        } else {
+            if (existingAlertBadge) existingAlertBadge.remove();
+            card.classList.remove('flood-alert');
+        }
+    } else {
+        // ✅ กรณีเซนเซอร์อื่นๆ (ไม่ใช่ Ultrasonic)
+        if (valEl) {
+            const displayValue = typeof waterLevel === 'number' ? waterLevel.toFixed(2) : '--';
+            valEl.textContent = displayValue;
+            valEl.style.color = '';
+        }
+        
+        // ✅ อัปเดต Level Badge สำหรับเซนเซอร์อื่นๆ
+        if (levelBadgeEl && waterLevel !== null) {
+            const result = evaluateLevelWithCustom(waterLevel, config.levels);
+            if (result && result.label !== 'ไม่ได้ตั้งค่า' && result.label !== 'ไม่มีข้อมูล') {
+                levelBadgeEl.innerHTML = `
+                    <span style="background: ${result.color || '#60a5fa'}; color: white; padding: 2px 10px; border-radius: 12px; font-size: 0.65rem;">
+                        ${result.label}
+                    </span>
+                `;
+            }
+        }
+        
+        // ✅ อัปเดตเวลา
+        if (timeEl) {
+            const nowTime = new Date().toLocaleTimeString('th-TH');
+            timeEl.textContent = `🟢 อัปเดต: ${nowTime}`;
+            timeEl.style.color = '#0d6b2a';
+        }
+        
+        // ✅ อัปเดต Diff สำหรับเซนเซอร์อื่นๆ
+        if (diffEl && waterLevel !== null) {
+            const result = evaluateLevelWithCustom(waterLevel, config.levels);
+            const statusEmoji = result?.shouldAlert ? '⚠️ ' : '📊 ';
+            diffEl.innerHTML = `
+                <div style="color: ${result?.color || '#60a5fa'}; font-size: 0.7rem; margin-top: 4px;">
+                    ${statusEmoji} สถานะ: ${result?.label || 'ไม่ระบุ'}
+                </div>
+                <div style="color: #64748b; font-size: 0.55rem; margin-top: 2px;">
+                    📊 ค่า: ${waterLevel.toFixed(2)} ${config.unit || ''}
+                </div>
+            `;
+        }
+    }
+}
+
+// ✅ Export ให้ global
+window.updateSensorCardStatus = updateSensorCardStatus;
+// ============================================================
+//  10. PROCESS NEW DATA - FIXED (Ignore ESP32 status, water_level, bank_height, install_height)
+//  ✅ ให้เว็บเป็นผู้คำนวณระดับน้ำเอง ไม่ใช้ค่าจาก ESP32
+//  ✅ แก้ไข: ส่ง Water Level ที่คำนวณแล้วไปตรวจสอบ Alert
 // ============================================================
 async function processNewData(dataObj) {
     if (!dataObj) return;
@@ -2563,101 +2646,157 @@ async function processNewData(dataObj) {
     console.log("📡 รับข้อมูลใหม่:", dataObj);
     window._lastDataTime = Date.now();
     
-    const boardId = dataObj.board_id || null;
-    const timeNow = new Date();
-
-    // ✅ ตรวจสอบว่ามีข้อมูลเซนเซอร์จริงหรือไม่
-    const sensorKeys = Object.keys(dataObj).filter(key => 
-        !['timestamp', 'board_id', 'wifi_rssi', 'rssi', 'status', 'online', 'install_height', 'bank_height', '_timestamp', 'savedAt'].includes(key) &&
-        typeof dataObj[key] === 'number' &&
-        !isNaN(dataObj[key])
-    );
-
-    // ✅ ถ้าไม่มีเซนเซอร์ในข้อมูลนี้ ให้ข้ามการอัปเดตบอร์ด
-    if (sensorKeys.length === 0) {
-        console.log(`⏭️ ข้ามอัปเดตบอร์ด ${boardId || 'ไม่ระบุ'} (ไม่มีข้อมูลเซนเซอร์)`);
+    // ============================================================
+    //  🔥 สำคัญ: ลบ status, water_level, bank_height, install_height ที่ ESP32 ส่งมา
+    //  เพื่อให้เว็บเป็นคนตัดสินสถานะและคำนวณเอง
+    // ============================================================
+    delete dataObj.status;
+    delete dataObj.water_level;
+    delete dataObj.bank_height;
+    delete dataObj.install_height;
+    
+    // ✅ เพิ่ม: ลบ status ที่ซ่อนอยู่ในรูปแบบอื่นๆ ด้วย
+    if (dataObj.hasOwnProperty('status')) {
+        delete dataObj.status;
     }
-
+    if (dataObj.hasOwnProperty('water_level')) {
+        delete dataObj.water_level;
+    }
+    if (dataObj.hasOwnProperty('bank_height')) {
+        delete dataObj.bank_height;
+    }
+    if (dataObj.hasOwnProperty('install_height')) {
+        delete dataObj.install_height;
+    }
+    
     // ============================================================
-    //  🔥 สำคัญ: ไม่มีการอัปเดต boardRef ใน processNewData
-    //  ปล่อยให้ checkBoardStatusFromSensors เป็นผู้จัดการ
-    //  และไม่เขียนทับชื่อที่ผู้ใช้ตั้งไว้
+    //  🔥 สำคัญมาก: เช็คว่า dataObj นี้มาจาก /sensors/current หรือไม่
+    //  ถ้ามาจาก /sensors/current และมีแค่ status ให้ข้ามเลย
     // ============================================================
-
-    // 2. กรองเฉพาะ ID ที่เป็นเซนเซอร์ (ตัวเลข)
-    const IGNORE_FIELDS = ['timestamp', 'install_height', 'status', 'water_level', '_', 'meta', 'savedAt', 'board_id', 'wifi_rssi', 'rssi', '_timestamp'];
-    const sensorKeys2 = Object.keys(dataObj).filter(key => 
+    const IGNORE_FIELDS = [
+        'timestamp', 'board_id', 'wifi_rssi', 'rssi', 'online', 
+        'sensor_error', '_timestamp', 'savedAt', 'meta', '_',
+        'status', 'water_level', 'bank_height', 'install_height'
+    ];
+    
+    // ✅ กรองเฉพาะ key ที่เป็นตัวเลข (เซนเซอร์)
+    const sensorKeys = Object.keys(dataObj).filter(key => 
         !IGNORE_FIELDS.includes(key) && 
         typeof dataObj[key] === 'number' && 
         !isNaN(dataObj[key])
     );
 
-    // 3. เก็บค่า Raw ลงใน currentSensorValues
-    sensorKeys2.forEach(id => {
+    // ✅ ถ้าไม่มีเซนเซอร์ในข้อมูลนี้ ให้ข้าม (Log แจ้งให้รู้)
+    if (sensorKeys.length === 0) {
+        console.log(`⏭️ ข้ามอัปเดต (ไม่มีข้อมูลเซนเซอร์) - เฉพาะ status: ${dataObj.status || 'ไม่มี'}`);
+        return;
+    }
+
+    // ✅ เก็บค่า Raw ลงใน currentSensorValues
+    sensorKeys.forEach(id => {
         currentSensorValues[id] = dataObj[id];
     });
 
-    // 4. วนลูปอัปเดตการแสดงผลทีละเซนเซอร์
-    sensorKeys2.forEach(async (id) => {
+    // ✅ วนลูปอัปเดตการแสดงผลทีละเซนเซอร์
+    for (const id of sensorKeys) {
         const config = deviceConfigs[id];
-        if (!config || !config.enabled) return;
+        if (!config || !config.enabled) continue;
 
         let rawVal = dataObj[id];
-        let waterLevel = null;
         let displayValue = '--';
+        let waterLevel = null;
 
+        // ============================================================
+        //  ✅ จัดการ Ultrasonic - ใช้ Install Height จากเว็บเท่านั้น
+        // ============================================================
         if (config.type === 'ultrasonic') {
             const installHeight = parseFloat(config.installHeight) || 0;
+            
             if (installHeight > 0) {
+                // ✅ คำนวณระดับน้ำจาก Install Height ที่ตั้งในเว็บ
                 waterLevel = Math.max(0, installHeight - rawVal);
+                displayValue = waterLevel.toFixed(2);
+                
+                // ✅ เก็บค่าทั้ง Raw และ Water Level
+                currentSensorValues[id] = rawVal;  // เก็บค่า Raw
+                currentSensorValues[`${id}_water`] = waterLevel;  // เก็บ Water Level แยก
+                
+                console.log(`🌊 ${id}: Raw=${rawVal.toFixed(2)}cm → Water Level=${waterLevel.toFixed(2)}cm (installHeight=${installHeight}cm)`);
             } else {
+                // ถ้าไม่มี installHeight ให้ใช้ค่า Raw
+                displayValue = rawVal.toFixed(2);
                 waterLevel = rawVal;
+                console.log(`⚠️ ${id}: ไม่มี installHeight ใช้ค่า Raw=${rawVal.toFixed(2)}cm`);
             }
-            displayValue = waterLevel !== null ? waterLevel.toFixed(2) : rawVal.toFixed(2);
-            currentSensorValues[`${id}_water`] = waterLevel !== null ? waterLevel : rawVal;
         } else {
+            // เซนเซอร์อื่นๆ (soil, temp, ph, rain)
             displayValue = rawVal.toFixed(2);
+            waterLevel = rawVal;
         }
 
+        // ✅ อัปเดต UI ค่า
         const valEl = document.getElementById(`val_${id}`);
         if (valEl) {
             valEl.textContent = displayValue;
             valEl.style.color = '';
         }
 
+        // ✅ อัปเดต Diff (แสดงรายละเอียด)
         const diffEl = document.getElementById(`diff_${id}`);
-        if (diffEl) {
-            if (config.type === 'ultrasonic' && waterLevel !== null) {
-                const bankHeight = parseFloat(config.bankHeight) || 0;
-                const distanceToBank = bankHeight - waterLevel;
-                const result = evaluateLevelWithCustom(waterLevel, config.levels);
-                
-                let isFlooding = distanceToBank < 0;
-                let statusText = isFlooding ? 
-                    `🌊 น้ำท่วม! สูงกว่าตลิ่ง ${Math.abs(distanceToBank).toFixed(2)} ซม.` :
-                    `ระดับน้ำ: ${waterLevel.toFixed(2)} ซม. (อีก ${distanceToBank.toFixed(2)} ซม. ถึงตลิ่ง)`;
+        if (diffEl && config.type === 'ultrasonic' && waterLevel !== null) {
+            const bankHeight = parseFloat(config.bankHeight) || 0;
+            const distanceToBank = bankHeight - waterLevel;
+            const result = evaluateLevelWithCustom(waterLevel, config.levels);
+            
+            let isFlooding = distanceToBank < 0;
+            let statusText = isFlooding ? 
+                `🌊 น้ำล้นตลิ่ง! สูงกว่า ${Math.abs(distanceToBank).toFixed(2)} ซม.` :
+                `ระดับน้ำ: ${waterLevel.toFixed(2)} ซม. (อีก ${distanceToBank.toFixed(2)} ซม. ถึงตลิ่ง)`;
 
-                diffEl.innerHTML = `
-                    <div style="font-weight: bold; color: ${isFlooding ? '#f87171' : result.color};">${statusText}</div>
-                    <div style="color: #94a3b8; font-size: 0.7rem;">📏 ระยะห่างเซนเซอร์ (Raw): ${rawVal.toFixed(2)} ซม.</div>
-                    <div style="color: ${result.color}; font-size: 0.8rem;">📌 สถานะ: ${result.label}</div>
-                `;
-            }
+            diffEl.innerHTML = `
+                <div style="font-weight: bold; color: ${isFlooding ? '#f87171' : result.color || '#60a5fa'};">
+                    ${statusText}
+                </div>
+                <div style="color: #94a3b8; font-size: 0.7rem;">
+                    📏 ระยะที่วัดได้: ${rawVal.toFixed(2)} ซม.
+                </div>
+                <div style="color: ${result.color || '#60a5fa'}; font-size: 0.8rem;">
+                    📌 สถานะ: ${result.label || 'ไม่ระบุ'}
+                </div>
+            `;
         }
 
+        // ✅ เก็บประวัติ (ใช้ waterLevel สำหรับ Ultrasonic)
         const historyValue = (config.type === 'ultrasonic' && waterLevel !== null) ? waterLevel : rawVal;
         if (!sensorHistory.data[id]) sensorHistory.data[id] = [];
         sensorHistory.data[id].push(historyValue);
         if (sensorHistory.data[id].length > 100) sensorHistory.data[id].shift();
 
-        const checkVal = (config.type === 'ultrasonic' && waterLevel !== null) ? waterLevel : rawVal;
-        await checkAllAlertConditions(id, checkVal, config);
-    });
+        // ============================================================
+        //  ✅ ตรวจสอบการแจ้งเตือน - ใช้ Water Level เสมอ!
+        //  🔥 สำคัญ: ส่ง waterLevel (ค่าที่คำนวณแล้ว) ไม่ใช่ rawVal
+        // ============================================================
+        let checkValue = waterLevel !== null ? waterLevel : rawVal;
+        
+        // ✅ ถ้าเป็น Ultrasonic ให้ส่ง waterLevel ไปตรวจสอบ (ไม่ใช่ rawVal)
+        if (config.type === 'ultrasonic' && waterLevel !== null) {
+            checkValue = waterLevel;
+            console.log(`🔔 ${id}: ตรวจสอบการแจ้งเตือนด้วย Water Level=${checkValue.toFixed(2)}cm (Threshold=${config.advancedAlert?.threshold || 'ไม่มี'})`);
+        }
+        
+        // ✅ เรียกตรวจสอบการแจ้งเตือน
+        await checkAllAlertConditions(id, checkValue, config);
+        
+        // ✅ อัปเดตการ์ดสถานะ
+        updateSensorCardStatus(id, config, waterLevel, rawVal);
+    }
 
+    // ✅ อัปเดตกราฟและสถานะอื่นๆ
     if (chart) updateChartStructure();
     updateSensorStatus();
     updateStatusBarBoardDetails();
 }
+
 // ============================================================
 //  10.1 CHECK BOARD STATUS FROM SENSORS
 // ============================================================
@@ -2825,6 +2964,7 @@ async function checkBoardStatusFromSensors() {
         console.warn("⚠️ checkBoardStatusFromSensors error:", error);
     }
 }
+
 async function loadBoardNameFromFirebase(boardId) {
     if (!window.db || !boardId) return null;
     try {
@@ -2841,6 +2981,7 @@ async function loadBoardNameFromFirebase(boardId) {
 
 // ✅ Export ให้ global
 window.loadBoardNameFromFirebase = loadBoardNameFromFirebase;
+
 // ============================================================
 //  10.2 LOAD WEATHER INFO
 // ============================================================
@@ -3507,6 +3648,7 @@ window.renderBoardTable = function() {
         tbody.appendChild(tr);
     }
 };
+
 // ============================================================
 //  populateBoardSelector - อัปเดตรายชื่อบอร์ดใน dropdown
 //  ✅ ใช้ชื่อที่ผู้ใช้ตั้งไว้ (ไม่ใช่ ESP32 Node 01)
@@ -3553,11 +3695,6 @@ window.populateBoardSelector = function() {
 // ============================================================
 //  renderDeviceTable - แสดงตารางเซนเซอร์ทั้งหมด
 //  ✅ แสดงชื่อบอร์ดที่เชื่อมต่อโดยใช้ชื่อที่ผู้ใช้ตั้งไว้
-// ============================================================
-
-// ============================================================
-//  RENDER DEVICE TABLE - สไตล์ Clean & Blue Contrast
-//  จัดระเบียบด้วย Flexbox ให้ทุกคอลัมน์อยู่ในแนวเดียวกัน
 // ============================================================
 
 window.renderDeviceTable = function() {
@@ -3877,6 +4014,7 @@ window.renderDeviceTable = function() {
 // ✅ Export ให้ global
 window.populateBoardSelector = window.populateBoardSelector;
 window.renderDeviceTable = window.renderDeviceTable;
+
 // ============================================================
 //  14. UPDATE LAST SEEN
 // ============================================================
@@ -4142,6 +4280,7 @@ function updateSensorStatus() {
 
 // ✅ Export ให้ global
 window.updateSensorStatus = updateSensorStatus;
+
 // ============================================================
 //  16. SENSOR STATUS MONITOR
 // ============================================================
@@ -4265,224 +4404,376 @@ function startDeviceHealthMonitor() {
             const currentUser = sessionStorage.getItem('currentUser');
             if (!currentUser) return;
             await monitorDeviceHealth();
-            await checkAllAlertConditionsForAllDevices();
+            
+            // ✅ เรียกใช้ฟังก์ชันที่เพิ่มมา
+            if (typeof checkAllAlertConditionsForAllDevices === 'function') {
+                await checkAllAlertConditionsForAllDevices();
+            }
+            
             updateStatusBarBoardDetails();
         } catch (error) {
             console.error("❌ deviceHealthMonitor error:", error);
         }
     }, 45000);
-    console.log("✅ เริ่มระบบตรวจสอบสุขภาพอุปกรณ์อัตโนมัติ (เฉพาะ UI - ไม่เขียน Firebase)");
+    console.log("✅ เริ่มระบบตรวจสอบสุขภาพอุปกรณ์อัตโนมัติ");
 }
 
 // ============================================================
-//  18. ALERT SYSTEM
+//  checkLevelAlert - ตรวจสอบการแจ้งเตือนจากระดับ (Levels)
+//  ใช้ใน checkAllAlertConditions
 // ============================================================
-async function checkEventBasedAlert(id, value, config) {
-    if (config.alertEnabled === false) return;
-    if (!config.enabled) return;
-    if (config.is_acknowledged === true) return;
-    if (config.type === 'board') return;
-    const debounceTimeMs = (config.eventDebounceTime || 2) * 60 * 1000;
-    const now = Date.now();
-    const currentLevel = evaluateLevelWithCustom(value, config.levels);
-    if (!eventStateTracker[id]) {
-        eventStateTracker[id] = { 
-            lastConfirmedLevel: currentLevel.label, 
-            pendingLevel: null, 
-            lastChangeTime: now,
-            shouldAlert: false
-        };
+async function checkLevelAlert(sensorId, value, config) {
+    if (!config || !config.levels) {
+        return null;
     }
-    const state = eventStateTracker[id];
-    if (currentLevel.shouldAlert && state.pendingLevel !== currentLevel.label && currentLevel.label !== state.lastConfirmedLevel) {
-        state.lastConfirmedLevel = currentLevel.label;
-        state.pendingLevel = null;
-        await sendTelegramMessage(`🚨 [แจ้งเตือน] ${config.name}\nสถานะ: ${currentLevel.label}\nค่าที่วัดได้: ${value.toFixed(2)} ${config.unit || ''}`);
-        console.log(`🚨 แจ้งเตือนทันที ${id}: ${currentLevel.label}`);
-        return;
-    }
-    if (currentLevel.label !== state.lastConfirmedLevel) {
-        if (currentLevel.label === state.pendingLevel) {
-            if (now - state.lastChangeTime >= debounceTimeMs) {
-                state.lastConfirmedLevel = currentLevel.label;
-                state.pendingLevel = null;
-                state.shouldAlert = currentLevel.shouldAlert;
-                await sendTelegramMessage(`✅ [สถานะปกติ] ${config.name}\nสถานะ: ${currentLevel.label}\nค่าที่วัดได้: ${value.toFixed(2)} ${config.unit || ''}`);
-                console.log(`✅ ยืนยันสถานะ ${id}: ${currentLevel.label}`);
+    
+    const levels = config.levels;
+    let matchedLevel = null;
+    
+    // ✅ กรณี levels เป็น Array (แบบใหม่)
+    if (Array.isArray(levels) && levels.length > 0) {
+        for (const level of levels) {
+            const min = parseFloat(level.min);
+            const max = parseFloat(level.max);
+            if (!isNaN(min) && !isNaN(max) && value >= min && value <= max) {
+                matchedLevel = level;
+                break;
             }
-        } else {
-            state.pendingLevel = currentLevel.label;
-            state.lastChangeTime = now;
-            console.log(`⏳ ตรวจพบการเปลี่ยนสถานะของ ${id} เป็น ${currentLevel.label}, กำลังรอให้ค่านิ่ง...`);
         }
-    } else {
-        if (state.pendingLevel) {
-            state.pendingLevel = null;
-            console.log(`↩️ ${id} กลับสู่สถานะเดิม ${currentLevel.label}, ยกเลิกการรอ`);
+    }
+    
+    // ✅ กรณี levels เป็น Object (แบบเดิม)
+    if (!matchedLevel && typeof levels === 'object' && !Array.isArray(levels)) {
+        for (const key of LEVEL_KEYS) {
+            const level = levels[key];
+            if (level) {
+                const min = parseFloat(level.min);
+                const max = parseFloat(level.max);
+                if (!isNaN(min) && !isNaN(max) && value >= min && value <= max) {
+                    matchedLevel = { ...level, key: key };
+                    break;
+                }
+            }
         }
+    }
+    
+    // ✅ ถ้าเจอระดับที่ตรงกัน และมีการตั้งค่าแจ้งเตือน
+    if (matchedLevel && matchedLevel.alert === true) {
+        const levelLabel = matchedLevel.label || 'ไม่ระบุ';
+        const unit = config.unit || '';
+        return `⚠️ ระดับ ${levelLabel}: ค่า ${value.toFixed(2)} ${unit} อยู่ในเกณฑ์แจ้งเตือน`;
+    }
+    
+    return null;
+}
+
+// ============================================================
+//  getHistoryFromFirebase - ดึงประวัติข้อมูลจาก Firebase
+//  ใช้ใน checkAllAlertConditions สำหรับตรวจสอบ Rate of Change
+// ============================================================
+async function getHistoryFromFirebase(sensorId, minutes = 5) {
+    if (!window.db || !sensorId) {
+        return [];
+    }
+    
+    try {
+        // คำนวณเวลาย้อนหลัง
+        const now = Date.now();
+        const cutoffTime = new Date(now - (minutes * 60 * 1000));
+        
+        // ดึงข้อมูลจาก sensor_history
+        const historyRef = window.ref(window.db, 'sensor_history');
+        const snapshot = await window.get(historyRef);
+        
+        if (!snapshot.exists()) {
+            return [];
+        }
+        
+        const historyData = snapshot.val();
+        const values = [];
+        
+        // วนลูปหาข้อมูลของ sensorId ที่อยู่ในช่วงเวลา
+        for (const [key, entry] of Object.entries(historyData)) {
+            if (!entry || !entry.timestamp) continue;
+            
+            const logTime = new Date(entry.timestamp);
+            if (logTime < cutoffTime) continue;
+            
+            if (entry.values && entry.values[sensorId] !== undefined) {
+                const val = Number(entry.values[sensorId]);
+                if (!isNaN(val)) {
+                    values.push(val);
+                }
+            }
+        }
+        
+        // เรียงตามเวลา (เก่าไปใหม่)
+        if (values.length > 0) {
+            return values.sort((a, b) => a - b);
+        }
+        
+        return [];
+        
+    } catch (error) {
+        console.warn(`⚠️ getHistoryFromFirebase (${sensorId}) error:`, error);
+        return [];
     }
 }
+
+// ============================================================
+//  sendUnifiedAlert - ส่งแจ้งเตือนแบบรวม (Telegram + Console)
+//  ใช้ใน checkAllAlertConditions
+// ============================================================
+// ============================================================
+//  sendUnifiedAlert - ส่งแจ้งเตือนแบบรวม (Telegram + Console)
+//  ใช้ใน checkAllAlertConditions
+// ============================================================
+async function sendUnifiedAlert(sensorId, config, alertMessages) {
+    if (!sensorId || !config || !alertMessages || alertMessages.length === 0) {
+        return false;
+    }
+    
+    // ✅ ตรวจสอบ Anti-Spam
+    const now = Date.now();
+    const lockKey = sensorId;
+    
+    // ✅ สร้าง alertLock ถ้ายังไม่มี
+    if (typeof window.alertLock === 'undefined') {
+        window.alertLock = {};
+    }
+    
+    if (window.alertLock && window.alertLock[lockKey]) {
+        const timeSinceLastAlert = now - window.alertLock[lockKey];
+        const cooldown = (config.alertInterval || 5) * 60 * 1000; // นาที → ms
+        
+        if (timeSinceLastAlert < cooldown) {
+            const remaining = Math.round((cooldown - timeSinceLastAlert) / 60000);
+            console.log(`⏳ ${sensorId}: Anti-Spam (รออีก ${remaining} นาที)`);
+            return false;
+        }
+    }
+    
+    // ✅ ตรวจสอบ Mute
+    const muted = await isAlertMuted();
+    if (muted) {
+        console.log(`🔕 ${sensorId}: ระบบ Mute อยู่ ข้ามการแจ้งเตือน`);
+        return false;
+    }
+    
+    // ✅ ตรวจสอบ Limit
+    const limit = config.alertLimit || 3;
+    const currentCount = config.alert_count || 0;
+    
+    if (currentCount >= limit) {
+        console.log(`⚠️ ${sensorId}: เกิน Limit (${currentCount}/${limit})`);
+        return false;
+    }
+    
+    // ✅ สร้างข้อความ
+    const alertText = alertMessages.join('\n');
+    const title = `🚨 แจ้งเตือน: ${config.name || sensorId}`;
+    const body = `
+🚨 <b>แจ้งเตือนจากเซนเซอร์</b>
+📛 ชื่อ: ${config.name || sensorId}
+🆔 ID: ${sensorId}
+📊 ประเภท: ${config.type || 'ไม่ระบุ'}
+📈 ค่าปัจจุบัน: ${currentSensorValues[sensorId] || 'ไม่ทราบ'} ${config.unit || ''}
+
+📝 รายละเอียด:
+${alertText}
+
+🔢 ครั้งที่แจ้ง: ${currentCount + 1}/${limit}
+⏱️ เวลา: ${new Date().toLocaleString('th-TH')}
+    `.trim();
+    
+    const finalMsg = formatTelegramMessage(body, "ระบบแจ้งเตือนอัตโนมัติ", title);
+    
+    // ✅ ส่งข้อความ
+    const success = await sendTelegramMessage(finalMsg);
+    
+    if (success) {
+        // ✅ บันทึกสถานะการแจ้งเตือน
+        window.alertLock[lockKey] = now;
+        
+        // ✅ อัปเดต count ใน Firebase
+        await window.update(window.ref(window.db, `device_configs/${sensorId}`), {
+            alert_count: currentCount + 1,
+            last_alert_time: now,
+            updatedAt: new Date().toISOString()
+        });
+        
+        // ✅ อัปเดตในหน่วยความจำ
+        if (deviceConfigs[sensorId]) {
+            deviceConfigs[sensorId].alert_count = currentCount + 1;
+            deviceConfigs[sensorId].last_alert_time = now;
+        }
+        
+        // ✅ บันทึกประวัติ
+        await saveAlertHistory(sensorId, {
+            message: alertText,
+            status: 'sent',
+            value: currentSensorValues[sensorId],
+            count: currentCount + 1
+        });
+        
+        // ✅ รีเฟรช UI
+        updateStandaloneAlertPanel();
+        renderDeviceTable();
+        renderSummaryTable();
+        updateAlertHistoryDropdown();
+        
+        console.log(`✅ ส่งแจ้งเตือน ${sensorId} สำเร็จ (${currentCount + 1}/${limit})`);
+        return true;
+    } else {
+        console.log(`❌ ส่งแจ้งเตือน ${sensorId} ล้มเหลว`);
+        return false;
+    }
+}
+
+
+// ============================================================
+//  18. ALERT SYSTEM - FULLY FIXED (Auto Reset is_acknowledged)
+//  ✅ ตรวจสอบทุกเงื่อนไขและส่งแจ้งเตือนทาง Telegram
+//  ✅ รีเซ็ต is_acknowledged อัตโนมัติเมื่อเวลาผ่านไป
+//  ✅ แก้ไข: ใช้ sensorMode ในการตรวจสอบว่าเป็น Water Level หรือ Raw
+// ============================================================
 
 async function checkAllAlertConditions(sensorId, value, config) {
-    if (!config.enabled || config.alertEnabled === false) return;
-    if (config.is_acknowledged === true) return;
-    let alertMessages = [];
-    let checkValue = value;
-    if (config.type === 'ultrasonic' && config.installHeight) {
-        if (typeof value === 'number' && value < config.installHeight) {
-            checkValue = config.installHeight - value;
-            if (checkValue < 0) checkValue = 0;
+    // ✅ ป้องกันการทำงานเมื่อ config ไม่สมบูรณ์
+    if (!config) {
+        console.log(`⏭️ ข้ามการตรวจสอบ ${sensorId}: config ไม่มี`);
+        return;
+    }
+    
+    if (!config.enabled) {
+        console.log(`⏭️ ข้ามการตรวจสอบ ${sensorId}: อุปกรณ์ปิดใช้งาน`);
+        return;
+    }
+    
+    if (config.alertEnabled === false) {
+        console.log(`⏭️ ข้ามการตรวจสอบ ${sensorId}: ปิดการแจ้งเตือน`);
+        return;
+    }
+    
+    // ============================================================
+    //  🔥 สำคัญ: รีเซ็ต is_acknowledged อัตโนมัติ เมื่อเวลาผ่านไป
+    // ============================================================
+    if (config.is_acknowledged === true) {
+        const lastAckTime = config.last_ack_time || config.last_alert_time || 0;
+        const now = Date.now();
+        const timeSinceAck = now - lastAckTime;
+        const resetTime = window.AUTO_ACK_RESET_TIME || 5 * 60 * 1000;
+        
+        if (timeSinceAck > resetTime) {
+            console.log(`🔄 ${sensorId}: รีเซ็ต is_acknowledged อัตโนมัติ (ผ่านไป ${Math.round(timeSinceAck/60000)} นาที)`);
+            
+            await window.update(window.ref(window.db, `device_configs/${sensorId}`), {
+                is_acknowledged: false,
+                alert_count: 0,
+                last_alert_time: null,
+                last_ack_time: null,
+                updatedAt: new Date().toISOString()
+            });
+            
+            if (deviceConfigs[sensorId]) {
+                deviceConfigs[sensorId].is_acknowledged = false;
+                deviceConfigs[sensorId].alert_count = 0;
+                deviceConfigs[sensorId].last_alert_time = null;
+                deviceConfigs[sensorId].last_ack_time = null;
+            }
+            
+            if (alertLock && alertLock[sensorId]) {
+                delete alertLock[sensorId];
+                console.log(`🔓 ${sensorId}: ล้าง Anti-Spam Lock อัตโนมัติ`);
+            }
+            
+            if (typeof updateStandaloneAlertPanel === 'function') {
+                updateStandaloneAlertPanel();
+            }
+        } else {
+            const remainingMinutes = Math.round((resetTime - timeSinceAck) / 60000);
+            console.log(`⏭️ ${sensorId}: รับทราบแล้ว (รออีก ${remainingMinutes} นาที)`);
+            return;
         }
     }
-    const levelMsg = await checkLevelAlert(sensorId, checkValue, config);
-    if (levelMsg) alertMessages.push(levelMsg);
-    const advanced = config.advancedAlert || {};
-    if (advanced.threshold !== null && checkValue >= advanced.threshold) {
-        alertMessages.push(`⚠️ วิกฤต: ค่า ${checkValue.toFixed(2)} เกินเกณฑ์ (${advanced.threshold})`);
+    
+    // ============================================================
+    //  🔥 คำนวณ Water Level (ใช้ sensorMode เป็นตัวกำหนด)
+    //  🔥 แก้ไข: ไม่แปลงซ้ำ เพราะ processNewData ส่ง Water Level มาแล้ว
+    // ============================================================
+    let checkValue = value;
+    
+    if (config.type === 'ultrasonic' && config.installHeight) {
+        const installHeight = parseFloat(config.installHeight);
+        
+        if (typeof value === 'number' && !isNaN(value) && !isNaN(installHeight)) {
+            // ✅ ใช้ sensorMode ในการตรวจสอบ
+            if (config.sensorMode === 'vertical') {
+                // ✅ โหมดแนวตั้ง: value ที่ส่งมาคือ Water Level แล้ว (ไม่ต้องแปลง)
+                checkValue = value;
+                console.log(`📐 ${sensorId}: ใช้ Water Level ที่มีอยู่=${checkValue.toFixed(2)}cm (ไม่แปลง)`);
+            } else {
+                // ✅ โหมดแนวนอน: value คือระยะทางตรง (ไม่ต้องแปลง)
+                checkValue = value;
+                console.log(`📐 ${sensorId}: โหมดแนวนอน ใช้ค่าระยะทาง=${checkValue.toFixed(2)}cm`);
+            }
+        }
     }
-    if (advanced.rateChange !== null && advanced.rateTime) {
+    
+    console.log(`🔔 ${sensorId}: ตรวจสอบการแจ้งเตือนด้วย Water Level=${checkValue.toFixed(2)}cm (Threshold=${config.advancedAlert?.threshold || 'ไม่มี'})`);
+    
+    let alertMessages = [];
+    
+    // ============================================================
+    //  1. ตรวจสอบระดับ (Levels)
+    // ============================================================
+    const levelMsg = await checkLevelAlert(sensorId, checkValue, config);
+    if (levelMsg) {
+        alertMessages.push(levelMsg);
+        console.log(`✅ ${sensorId}: ผ่านเงื่อนไข Level Alert (${levelMsg})`);
+    }
+    
+    // ============================================================
+    //  2. ตรวจสอบ Threshold (Advanced)
+    // ============================================================
+    const advanced = config.advancedAlert || {};
+    if (advanced.threshold !== null && advanced.threshold !== undefined && checkValue >= advanced.threshold) {
+        alertMessages.push(`⚠️ วิกฤต: ค่า ${checkValue.toFixed(2)} เกินเกณฑ์ (${advanced.threshold})`);
+        console.log(`✅ ${sensorId}: ผ่านเงื่อนไข Threshold (${checkValue.toFixed(2)} >= ${advanced.threshold})`);
+    }
+    
+    // ============================================================
+    //  3. ตรวจสอบ Rate of Change
+    // ============================================================
+    if (advanced.rateChange !== null && advanced.rateChange !== undefined && advanced.rateTime) {
         const history = await getHistoryFromFirebase(sensorId, advanced.rateTime);
-        if (history.length > 0) {
+        if (history && history.length > 0) {
             const oldestValue = parseFloat(history[0]);
             if (!isNaN(oldestValue)) {
                 const delta = checkValue - oldestValue;
                 if (delta >= advanced.rateChange) {
                     alertMessages.push(`📈 อัตราการเพิ่มสูง: เพิ่มขึ้น ${delta.toFixed(2)} ${config.unit || ''} ใน ${advanced.rateTime} นาที (เกณฑ์ ${advanced.rateChange})`);
+                    console.log(`✅ ${sensorId}: ผ่านเงื่อนไข Rate (${delta.toFixed(2)} >= ${advanced.rateChange})`);
                 }
             }
         }
     }
+    
+    // ============================================================
+    //  4. ส่งแจ้งเตือน
+    // ============================================================
     if (alertMessages.length > 0) {
-        await sendUnifiedAlert(sensorId, config, alertMessages);
-    }
-}
-
-async function checkLevelAlert(sensorId, value, config) {
-    if (config.levels) {
-        const result = evaluateLevelWithCustom(value, config.levels);
-        if (result && result.shouldAlert) {
-            return `⚠️ ระดับ ${result.label}: ค่า ${value.toFixed(2)} ${config.unit || ''}`;
+        console.log(`🚨 ${sensorId}: กำลังส่งแจ้งเตือน ${alertMessages.length} ข้อความ`);
+        const result = await sendUnifiedAlert(sensorId, config, alertMessages);
+        if (result) {
+            console.log(`✅ ส่งแจ้งเตือน ${sensorId} สำเร็จ`);
+        } else {
+            console.log(`⚠️ ส่งแจ้งเตือน ${sensorId} ล้มเหลว (อาจถูก Anti-Spam หรือ Mute)`);
         }
-    }
-    return null;
-}
-
-async function sendUnifiedAlert(sensorId, config, messages) {
-    if (!messages || messages.length === 0) return false;
-    const combinedMessage = messages.join('\n');
-    const finalMessage = `🚨 [อุปกรณ์ ${config.name}]\n${combinedMessage}`;
-    return await sendCombinedAlert(sensorId, config, finalMessage, 'unified');
-}
-
-async function checkAllAlertConditionsForAllDevices() {
-    try {
-        for (const [id, config] of Object.entries(deviceConfigs)) {
-            const value = currentSensorValues[id];
-            if (value === undefined || value === null || isNaN(value)) continue;
-            let checkValue = value;
-            if (config.type === 'ultrasonic' && config.installHeight) {
-                const rawDistance = parseFloat(value);
-                if (!isNaN(rawDistance)) {
-                    checkValue = calculateWaterLevel(rawDistance, config.installHeight);
-                }
-            }
-            if (checkValue !== null && !isNaN(checkValue)) {
-                await checkAllAlertConditions(id, checkValue, config);
-            }
-        }
-    } catch (error) {
-        console.error('❌ checkAllAlertConditionsForAllDevices error:', error);
+    } else {
+        console.log(`✅ ${sensorId}: ไม่มีเงื่อนไขแจ้งเตือน (Water Level=${checkValue.toFixed(2)}cm)`);
     }
 }
-
-async function getHistoryFromFirebase(id, minutes) {
-    if (!window.db) return [];
-    const now = Date.now();
-    const startTime = now - (minutes * 60 * 1000);
-    const historyRef = window.ref(window.db, 'sensor_history');
-    try {
-        const snapshot = await window.get(historyRef);
-        if (!snapshot.exists()) return [];
-        let history = [];
-        snapshot.forEach((child) => {
-            const data = child.val();
-            if (data && data.values && data.values[id] !== undefined) {
-                const logTime = data.timestamp ? new Date(data.timestamp).getTime() : 0;
-                if (!isNaN(logTime) && logTime >= startTime) {
-                    history.push(data.values[id]);
-                }
-            } else if (data && data[id] !== undefined) {
-                const logTime = data.timestamp ? new Date(data.timestamp).getTime() : 0;
-                if (!isNaN(logTime) && logTime >= startTime) {
-                    history.push(data[id]);
-                }
-            }
-        });
-        return history;
-    } catch (error) {
-        console.error("❌ getHistoryFromFirebase error:", error);
-        return [];
-    }
-}
-
-const alertLock = {};
-
-async function sendCombinedAlert(sensorId, config, message, alertType = 'general') {
-    if (!sensorId || !message) return false;
-    const muted = await isAlertMuted();
-    if (muted) {
-        console.log(`🔕 ระบบ Mute ทำงานอยู่: งดส่งแจ้งเตือน ${sensorId}`);
-        return false;
-    }
-    const now = Date.now();
-    const LOCK_TIME = 10 * 60 * 1000;
-    if (alertLock[sensorId] && (now - alertLock[sensorId] < LOCK_TIME)) {
-        console.log(`⏳ Anti-Spam: ${sensorId} ถูกล็อกไว้`);
-        return false;
-    }
-    try {
-        const configSnap = await window.get(window.ref(window.db, 'settings/telegram/config'));
-        const token = configSnap.val()?.botToken;
-        if (!token || token.trim() === '') {
-            console.warn("⚠️ ไม่มี Bot Token");
-            return false;
-        }
-        const subsSnap = await window.get(window.ref(window.db, 'settings/telegram/subscribers'));
-        let success = false;
-        if (subsSnap.exists()) {
-            const subs = subsSnap.val();
-            for (let subId in subs) {
-                const chatId = subs[subId].chatId;
-                if (chatId) {
-                    const finalMessage = formatTelegramMessage(message, "ระบบแจ้งเตือนอัตโนมัติ", "🚨 แจ้งเตือนด่วน");
-                    const result = await sendTelegramTextManual(token, chatId, finalMessage);
-                    if (result) success = true;
-                }
-            }
-        }
-        if (success) {
-            await saveAlertHistory(sensorId, {
-                message: message,
-                type: alertType,
-                status: 'sent'
-            });
-            alertLock[sensorId] = now;
-            await window.update(window.ref(window.db, `device_configs/${sensorId}`), {
-                alert_count: (config.alert_count || 0) + 1,
-                last_alert_time: now
-            });
-            updateStandaloneAlertPanel();
-            renderAlertHistoryTable(sensorId);
-            updateStatusBarBoardDetails();
-            console.log(`✅ ส่งแจ้งเตือน ${sensorId} สำเร็จ (${alertType})`);
-        }
-        return success;
-    } catch (error) {
-        console.error("❌ sendCombinedAlert error:", error);
-        return false;
-    }
-}
-
 // ============================================================
 //  19. ALERT HISTORY
 // ============================================================
@@ -4660,35 +4951,136 @@ window.clearAllAlertHistory = async function(deviceId) {
         await renderAlertHistoryTable(deviceId);
     }
 };
-
 // ============================================================
-//  20. STANDALONE ALERT PANEL
+//  19.5 ACKNOWLEDGE ALERT - รับทราบการแจ้งเตือน
+// ============================================================
+window.acknowledgeAlert = async function(deviceId) {
+    if (!deviceId) {
+        console.warn("⚠️ ไม่พบ deviceId");
+        return;
+    }
+    
+    try {
+        const config = deviceConfigs[deviceId];
+        if (!config) {
+            console.warn(`⚠️ ไม่พบอุปกรณ์ ${deviceId}`);
+            return;
+        }
+        
+        // ✅ อัปเดตสถานะรับทราบใน Firebase
+        await window.update(window.ref(window.db, `device_configs/${deviceId}`), {
+            is_acknowledged: true,
+            last_ack_time: Date.now(),
+            updatedAt: new Date().toISOString()
+        });
+        
+        // ✅ อัปเดตในหน่วยความจำ
+        if (deviceConfigs[deviceId]) {
+            deviceConfigs[deviceId].is_acknowledged = true;
+            deviceConfigs[deviceId].last_ack_time = Date.now();
+        }
+        
+        // ✅ ลบ Anti-Spam Lock
+        if (window.alertLock && window.alertLock[deviceId]) {
+            delete window.alertLock[deviceId];
+        }
+        
+        console.log(`✅ รับทราบการแจ้งเตือน ${deviceId} เรียบร้อย`);
+        
+        // ✅ รีเฟรช UI
+        if (typeof updateStandaloneAlertPanel === 'function') {
+            updateStandaloneAlertPanel();
+        }
+        if (typeof renderDeviceTable === 'function') {
+            renderDeviceTable();
+        }
+        if (typeof renderSummaryTable === 'function') {
+            renderSummaryTable();
+        }
+        if (typeof updateAlertHistoryDropdown === 'function') {
+            updateAlertHistoryDropdown();
+        }
+        
+    } catch (error) {
+        console.error(`❌ acknowledgeAlert error (${deviceId}):`, error);
+        alert(`❌ รับทราบไม่สำเร็จ: ${error.message}`);
+    }
+};
+
+// ✅ Export ให้ global
+window.acknowledgeAlert = window.acknowledgeAlert;
+// ============================================================
+//  20. STANDALONE ALERT PANEL - FIXED (แสดงปุ่มรับทราบเสมอ)
 // ============================================================
 function updateStandaloneAlertPanel() {
     const panel = document.getElementById('standaloneAlertPanel');
     const container = document.getElementById('alertListContainer');
     if (!panel || !container) return;
+
+    if (window.alertDismissTimer) {
+        clearTimeout(window.alertDismissTimer);
+        window.alertDismissTimer = null;
+    }
+
+    // ✅ ดึงอุปกรณ์ที่มีการแจ้งเตือน (รวมออฟไลน์)
     let alerts = Object.entries(deviceConfigs).filter(([id, cfg]) => {
         if (cfg.type === 'board') return false;
-        if (cfg.alert_count <= 0) return false;
-        if (cfg.is_acknowledged === true) return false;
         if (cfg.enabled !== true) return false;
         if (cfg.alertEnabled === false) return false;
-        const isAutoGenerated = !cfg.name || 
-                               cfg.name === `เซนเซอร์ (${id})` || 
-                               cfg.name === '' ||
-                               cfg.name === id;
-        return !isAutoGenerated;
+        
+        // ✅ ตรวจสอบว่ามีการแจ้งเตือนหรือออฟไลน์
+        const isOffline = cfg.status === 'offline';
+        const hasAlertCount = (cfg.alert_count || 0) > 0;
+        const isAcknowledged = cfg.is_acknowledged === true;
+        
+        // ✅ ถ้ารับทราบแล้ว ข้าม
+        if (isAcknowledged) return false;
+        
+        // ✅ แสดงเฉพาะที่มีการแจ้งเตือน หรือ ออฟไลน์
+        return hasAlertCount || isOffline;
     });
+
     if (alerts.length > 0) {
         panel.style.display = 'block';
         container.innerHTML = '';
+        
         alerts.forEach(([id, cfg]) => {
             const btn = document.createElement('button');
             const alertCount = cfg.alert_count || 0;
-            btn.innerHTML = `✅ รับทราบ: ${cfg.name || id} (แจ้งเตือน ${alertCount} ครั้ง)`;
+            const isOffline = cfg.status === 'offline';
+            
+            // ✅ กำหนดข้อความและสีตามสถานะ
+            let alertType = '';
+            let alertIcon = '⚠️';
+            let alertColor = '#b91c1c';
+            
+            if (isOffline) {
+                alertType = `⛔ อุปกรณ์ออฟไลน์`;
+                alertIcon = '⛔';
+                alertColor = '#f87171';
+            } else if (cfg.type === 'ultrasonic') {
+                const threshold = cfg.advancedAlert?.threshold;
+                const currentValue = currentSensorValues[id];
+                const isFlood = threshold && currentValue >= threshold;
+                if (isFlood) {
+                    alertType = '🌊 น้ำท่วม!';
+                    alertIcon = '🌊';
+                    alertColor = '#d32f2f';
+                } else {
+                    alertType = `⚠️ ${cfg.name || id}`;
+                    alertIcon = '⚠️';
+                    alertColor = '#b91c1c';
+                }
+            } else {
+                alertType = `⚠️ ${cfg.name || id}`;
+                alertIcon = '⚠️';
+                alertColor = '#b91c1c';
+            }
+            
+            // ✅ สร้างปุ่มรับทราบ
+            btn.innerHTML = `✅ รับทราบ: ${alertIcon} ${alertType} ${alertCount > 0 ? `(แจ้งเตือน ${alertCount} ครั้ง)` : ''}`;
             btn.style.cssText = `
-                background: #b91c1c; 
+                background: ${alertColor}; 
                 color: white; 
                 border: none; 
                 padding: 12px 20px; 
@@ -4701,83 +5093,70 @@ function updateStandaloneAlertPanel() {
                 display: inline-flex;
                 align-items: center;
                 gap: 8px;
+                font-size: 0.9rem;
             `;
             btn.onmouseover = function() { 
-                this.style.transform = 'scale(1.05)'; 
-                this.style.background = '#7f1d1d';
+                this.style.transform = 'scale(1.03)'; 
+                this.style.opacity = '0.9';
             };
             btn.onmouseout = function() { 
                 this.style.transform = 'scale(1)'; 
-                this.style.background = '#b91c1c';
+                this.style.opacity = '1';
             };
             btn.onclick = () => window.acknowledgeAlert(id);
             container.appendChild(btn);
         });
-        if (alerts.length > 1) {
-            const dismissAllBtn = document.createElement('button');
-            dismissAllBtn.innerHTML = `✅ รับทราบทั้งหมด (${alerts.length} รายการ)`;
-            dismissAllBtn.style.cssText = `
-                background: #1e293b; 
-                color: #e2e8f0; 
-                border: 1px solid #475569; 
-                padding: 12px 20px; 
-                border-radius: 8px; 
-                cursor: pointer; 
-                font-weight: bold; 
-                transition: 0.3s;
-                margin: 4px;
-            `;
-            dismissAllBtn.onmouseover = function() { 
-                this.style.background = '#334155'; 
-            };
-            dismissAllBtn.onmouseout = function() { 
-                this.style.background = '#1e293b'; 
-            };
-            dismissAllBtn.onclick = async () => {
-                if (!confirm(`⚠️ ยืนยันรับทราบการแจ้งเตือนทั้งหมด ${alerts.length} รายการ?`)) return;
-                for (const [id] of alerts) {
-                    try {
-                        await window.update(window.ref(window.db, `device_configs/${id}`), {
-                            is_acknowledged: true,
-                            alert_count: 0,
-                            last_alert_time: null
-                        });
-                    } catch (e) {
-                        console.error(`❌ รับทราบ ${id} ล้มเหลว:`, e);
-                    }
-                }
-                updateStandaloneAlertPanel();
-                renderDeviceTable();
-                renderBoardTable();
-                renderSummaryTable();
-                updateStatusBarBoardDetails();
-                alert(`✅ รับทราบการแจ้งเตือนทั้งหมด ${alerts.length} รายการเรียบร้อย`);
-            };
-            container.appendChild(dismissAllBtn);
-        }
-        const countBadge = document.createElement('div');
-        countBadge.style.cssText = `
-            background: #ef4444;
-            color: white;
-            border-radius: 50%;
-            padding: 2px 10px;
-            font-size: 0.8rem;
-            font-weight: bold;
-            display: inline-block;
-            margin-left: 10px;
-        `;
-        countBadge.textContent = alerts.length;
+
+        // ✅ อัปเดตหัวข้อ
         const titleEl = panel.querySelector('h3');
         if (titleEl) {
-            const existingBadge = titleEl.querySelector('.alert-count-badge');
-            if (existingBadge) existingBadge.remove();
-            titleEl.appendChild(countBadge);
+            const hasOffline = alerts.some(([id, cfg]) => cfg.status === 'offline');
+            const hasFlood = alerts.some(([id, cfg]) => {
+                const threshold = cfg.advancedAlert?.threshold;
+                const currentValue = currentSensorValues[id];
+                return threshold && currentValue >= threshold && cfg.type === 'ultrasonic';
+            });
+            
+            if (hasFlood) {
+                titleEl.innerHTML = `
+                    <span style="margin-right: 10px; font-size: 1.5rem;">🌊</span> 
+                    แจ้งเตือนน้ำท่วม! ระดับน้ำเกินเกณฑ์
+                `;
+                titleEl.style.color = '#d32f2f';
+            } else if (hasOffline) {
+                titleEl.innerHTML = `
+                    <span style="margin-right: 10px; font-size: 1.5rem;">⛔</span> 
+                    แจ้งเตือน: พบอุปกรณ์ออฟไลน์
+                `;
+                titleEl.style.color = '#f87171';
+            } else {
+                titleEl.innerHTML = `
+                    <span style="margin-right: 10px; font-size: 1.5rem;">🚨</span> 
+                    แจ้งเตือน: พบอุปกรณ์ขัดข้อง
+                `;
+                titleEl.style.color = '#b91c1c';
+            }
         }
+
+        // ✅ ตั้งเวลา Auto-Dismiss
+        const dismissTime = window.AUTO_DISMISS_TIME || 5 * 60 * 1000; // 5 นาที
+        window.alertDismissTimer = setTimeout(() => {
+            panel.style.display = 'none';
+            if (window.alertDismissTimer) {
+                clearTimeout(window.alertDismissTimer);
+                window.alertDismissTimer = null;
+            }
+            console.log("⏰ Auto-Dismiss: ปิดแผงแจ้งเตือนอัตโนมัติ");
+        }, dismissTime);
+        
     } else {
         panel.style.display = 'none';
+        if (window.alertDismissTimer) {
+            clearTimeout(window.alertDismissTimer);
+            window.alertDismissTimer = null;
+        }
     }
 }
-
 // ============================================================
 //  21. GLOBAL MUTE
 // ============================================================
@@ -5092,6 +5471,7 @@ function renderGlobalAlertDeviceList() {
 
     container.innerHTML = html;
 }
+
 // ============================================================
 //  23. SUMMARY TABLE
 // ============================================================
@@ -5805,10 +6185,6 @@ window.updatePeriodLabel = function() {
 };
 
 // ============================================================
-//  AUTO-LOG PREVIEW - ปรับปรุงให้ดูเป็นมืออาชีพ
-// ============================================================
-
-// ============================================================
 //  AUTO-LOG PREVIEW - สไตล์ Clean & Minimal (พื้นหลังขาว)
 // ============================================================
 
@@ -6161,6 +6537,7 @@ window.calculateAutoLogPreview = function() {
         </div>
     `;
 };
+
 // ============================================================
 //  29. MANUAL CLEANUP
 // ============================================================
@@ -6423,6 +6800,10 @@ window.openSettingsManager = function() {
         loadSubscribers();
         loadTelegramHistory();
         renderTelegramSchedules();
+        // ✅ เพิ่มบรรทัดนี้
+        if (typeof loadAutoDismissResetSettings === 'function') {
+            loadAutoDismissResetSettings();
+        }
     }
 };
 
@@ -6976,7 +7357,7 @@ function renderLevelConfigInline() {}
 function toggleLevelMode() {}
 
 function initSensorModule() {
-    console.log("🚀 Sensors Module เริ่มทำงาน (เวอร์ชัน 3.1 - แก้ไขข้อความค้าง + อัปเดตบอร์ด)");
+    console.log("🚀 Sensors Module เริ่มทำงาน (เวอร์ชัน 3.2 - FULL FIXED)");
     applyDisabledCardStyles();
     updateAlertHistoryDropdown();
     startSensorStatusMonitor();
@@ -7063,10 +7444,10 @@ function addHistoryButtonsToSensorCards() {
 
 // ✅ Export ให้ global
 window.addHistoryButtonsToSensorCards = addHistoryButtonsToSensorCards;
+
 // ============================================================
 //  36. EDIT BOARD NAME
 // ============================================================
-// แทนที่ฟังก์ชัน editBoardName ทั้งหมด (ประมาณบรรทัดที่ 2100)
 window.editBoardName = async function(boardId) {
     if (!boardId) {
         alert("❌ ไม่พบ ID บอร์ด");
@@ -7122,8 +7503,9 @@ window.editBoardName = async function(boardId) {
         alert("❌ เปลี่ยนชื่อไม่สำเร็จ: " + e.message);
     }
 };
+
 // ============================================================
-//  WEATHER CARD FUNCTIONS - เพิ่มเข้าไปใน sensors.js
+//  WEATHER CARD FUNCTIONS
 // ============================================================
 
 // ============================================================
@@ -7231,8 +7613,6 @@ function updateWeatherCardContent(card, boardId, config, data) {
         
         // อัปเดต border-left
         card.style.borderLeftColor = isBoardOnline ? '#4ade80' : '#f87171';
-        
-
         
         // ✅ อัปเดตหัวข้อสภาพอากาศ
         const titleEl = card.querySelector('.weather-title-text');
@@ -7398,6 +7778,7 @@ function updateWeatherCardError(card, boardId, config) {
         console.warn(`⚠️ อัปเดตการ์ด error ${boardId} ล้มเหลว:`, e);
     }
 }
+
 // ============================================================
 //  37. GPS WEATHER SETTINGS - PER BOARD
 // ============================================================
@@ -7540,7 +7921,8 @@ window.useGPSForBoardWeather = useGPSForBoardWeather;
 window.searchBoardLocationByCoords = searchBoardLocationByCoords;
 
 console.log("✅ เพิ่มฟังก์ชัน GPS สำหรับ Board Weather แล้ว");
+
 // ============================================================
 //  INITIALIZATION
 // ============================================================
-console.log("✅ sensors.js โหลดเรียบร้อย (เวอร์ชัน 3.2 - Fixed Labels)");
+console.log("✅ sensors.js โหลดเรียบร้อย (เวอร์ชัน 3.2 - FULL FIXED)");
